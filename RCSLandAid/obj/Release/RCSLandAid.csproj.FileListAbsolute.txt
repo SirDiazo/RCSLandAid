@@ -1,0 +1,5 @@
+H:\Kerbal Space Program 0.23.5 dev\GameData\Diazo\RCSLandAid\RCSLandAid.dll
+H:\Kerbal Space Program 0.23.5 dev\GameData\Diazo\RCSLandAid\RCSLandAid.pdb
+H:\KSPEdits\RCSLandAid\RCSLandAid\RCSLandAid\obj\Release\RCSLandAid.csprojResolveAssemblyReference.cache
+H:\KSPEdits\RCSLandAid\RCSLandAid\RCSLandAid\obj\Release\RCSLandAid.dll
+H:\KSPEdits\RCSLandAid\RCSLandAid\RCSLandAid\obj\Release\RCSLandAid.pdb
