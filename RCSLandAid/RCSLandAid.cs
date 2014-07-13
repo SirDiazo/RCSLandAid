@@ -15,7 +15,7 @@ namespace RCSLandAid
         Vector3 moveHoriz; //horizontal movement, world coords
         Vector3 moveHorizLocal; //horizontal movement, vessel local coords
         
-        static float engageHeight = 200;
+        static float engageHeight = 500;
         bool targetSelected = false;
         bool selectingTarget = false;
         Vector3 targetLocation;
