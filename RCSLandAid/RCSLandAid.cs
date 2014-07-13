@@ -161,7 +161,7 @@ namespace RCSLandAid
             {
                 vslHeight = FlightGlobals.ActiveVessel.heightFromTerrain;
             }
-            print("hgt " + engageHeight + " " + vslHeight);
+            //print("hgt " + engageHeight + " " + vslHeight);
             if (controlState == 1 && engageHeight > vslHeight)
             {
                 RCSlaCtrl.X = moveHorizLocal.x;
