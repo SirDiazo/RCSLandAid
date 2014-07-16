@@ -15,7 +15,7 @@ namespace RCSLandAid
         Vector3 moveHoriz; //horizontal movement, world coords
         Vector3 moveHorizLocal; //horizontal movement, vessel local coords
         
-        static float engageHeight = 500;
+        public static float engageHeight = 500;
         bool targetSelected = false;
         bool selectingTarget = false;
         Vector3 targetLocation;
@@ -23,7 +23,11 @@ namespace RCSLandAid
         private IButton RCSla1Btn;
         GameObject lineObj = new GameObject("Line");
         LineRenderer theLine = new LineRenderer();
+        public static bool forceSASup = false;
         //RCSLandingAidWindow RCSwin;
+        private bool SASset = false;
+        float vslHeight = 0f;
+        Part lastRoot = new Part();
 
         public void Start()
         {
@@ -67,11 +71,15 @@ namespace RCSLandAid
             {
                 controlState = 1;
                 RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconBlue";
+                RCSla1Btn.Drawable = null;
+                selectingTarget = false;
+                targetSelected = false;
             }
             else 
             {
                 controlState = 0;
                 targetSelected = false;
+                selectingTarget = false;
                 theLine.SetWidth(0, 0);
                 RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconWhiteB";
                 RCSla1Btn.Drawable = null;
@@ -84,10 +92,12 @@ namespace RCSLandAid
             {
                 controlState = 1;
                 targetSelected = false;
+                selectingTarget = false;
                 theLine.SetWidth(0, 0);
                 RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconBlue";
-                RCSLandingAidWindow RCSwin = new RCSLandingAidWindow();
-                RCSla1Btn.Drawable = RCSwin;
+                
+                
+                RCSla1Btn.Drawable = null;
                     
             }
             else
@@ -95,7 +105,8 @@ namespace RCSLandAid
                 controlState = 2;
                 RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconRed";
                 selectingTarget = true;
-                RCSla1Btn.Drawable = null;
+                RCSLandingAidWindow RCSwin = new RCSLandingAidWindow();
+                RCSla1Btn.Drawable = RCSwin; 
 
             }
         }
@@ -103,7 +114,7 @@ namespace RCSLandAid
         public void Update()
         {
 
-
+            //print("Height " + engageHeight);
             if (selectingTarget)
             {
                 RaycastHit pHit;
@@ -112,20 +123,34 @@ namespace RCSLandAid
                 Ray pRay = FlightCam.mainCamera.ScreenPointToRay(Input.mousePosition);
                 //Ray pRayDown = new Ray(FlightCamera. transform.position , FlightGlobals.currentMainBody.position);
                 Vector3 hitLoc = new Vector3();    
-                if (Physics.Raycast(pRay, out pHit, 5000f, pRayMask)) //cast ray
+                if (Physics.Raycast(pRay, out pHit, 2000f, pRayMask)) //cast ray
                 {
                     hitLoc = pHit.point;
                    // print(hitLoc);
                     theLine.SetWidth(0, 1);
                     theLine.SetPosition(0, hitLoc);
-                    theLine.SetPosition(1, hitLoc + ((hitLoc - FlightGlobals.ActiveVessel.mainBody.position).normalized) * 5);
+                    theLine.SetPosition(1, hitLoc + ((hitLoc - FlightGlobals.ActiveVessel.mainBody.position).normalized) * 7);
                     if(Input.GetKeyDown(KeyCode.Mouse0))
                     {
+                        RCSla1Btn.Drawable = null;
                         selectingTarget = false;
                         targetLocation = hitLoc;
                         targetSelected = true;
                     }
                 }
+            }
+            if (FlightGlobals.ActiveVessel.rootPart != lastRoot)
+            {
+                try
+                {
+                    FlightGlobals.ActiveVessel.OnFlyByWire -= RCSLandAidControl;
+                }
+                catch
+                {
+
+                }
+                FlightGlobals.ActiveVessel.OnFlyByWire += RCSLandAidControl;
+                lastRoot = FlightGlobals.ActiveVessel.rootPart;
             }
             
         }
@@ -140,8 +165,38 @@ namespace RCSLandAid
         }
         public void FixedUpdate()
         {
+            if (FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.RCS] && controlState > 0 && vslHeight < engageHeight && FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.SAS] && !SASset && forceSASup)
+            {
+                //Quaternion refRot = new Quaternion(0, 0, 0, 0);
+               // Vector3 referUp = FindUpVector();
+                //Quaternion refQuant = Quaternion.Euler(referUp);
+                //refRot.SetFromToRotation(new Vector3(0,0,0), referUp);
+                //FlightGlobals.ActiveVessel.VesselSAS.LockHeading(refRot);
+                //print("angle2 " + Vector3.Angle(FlightGlobals.ActiveVessel.VesselSAS.referenceRotation, referUp));
+                Quaternion refQuant = new Quaternion(0, 0, 0, 0);
+                FlightGlobals.ActiveVessel.VesselSAS.LockHeading(refQuant);
+
+                SASset = true;
             
-            
+
+            }
+            if(!FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.RCS] || controlState == 0 || vslHeight > engageHeight || !FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.SAS])
+            {
+                SASset = false;
+            }
+            //print("ref " + FlightGlobals.ActiveVessel.VesselSAS.referenceRotation+ " " + FlightGlobals.ActiveVessel.VesselSAS.lockedHeading.eulerAngles+ " " + FlightGlobals.ActiveVessel.VesselSAS.currentRotation.eulerAngles);
+            //if (FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.RCS] && controlState > 0 && vslHeight < engageHeight && FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.SAS])
+            //{
+                // print("Set Rot!");
+                
+                //refRot.SetLookRotation(FindUpVector());//,FlightGlobals.ActiveVessel.VesselSAS.lockedHeading.eulerAngles);
+                //refRot.SetLookRotation(-Vector3.up, Vector3.right);
+                //FlightGlobals.ActiveVessel.VesselSAS.referenceRotation = worldUp;
+                
+
+            //}
+            //print("angle " + Quaternion.Angle(FlightGlobals.ActiveVessel.VesselSAS.currentRotation, FlightGlobals.ActiveVessel.VesselSAS.referenceRotation));
+           // print(SASset.ToString() + FindUpVector().normalized + "A" + worldUp.normalized + "B" + FlightGlobals.ActiveVessel.VesselSAS.referenceRotation + "C" + FlightGlobals.ActiveVessel.VesselSAS.lockedHeading.eulerAngles.normalized + "D");
         }
 
         public void RCSLandAidControl(FlightCtrlState RCSlaCtrl)
@@ -152,7 +207,7 @@ namespace RCSLandAid
             worldUp = vslRef.position - FlightGlobals.ActiveVessel.mainBody.position;
             moveHoriz = Vector3.Exclude(worldUp, surVect);
             moveHorizLocal = vslRef.InverseTransformDirection(moveHoriz);
-            float vslHeight = 0f;
+            
             if (FlightGlobals.ActiveVessel.mainBody.ocean)
             {
                 vslHeight = (float)Math.Min(FlightGlobals.ActiveVessel.altitude, FlightGlobals.ActiveVessel.heightFromTerrain);
@@ -164,9 +219,9 @@ namespace RCSLandAid
             //print("hgt " + engageHeight + " " + vslHeight);
             if (controlState == 1 && engageHeight > vslHeight)
             {
-                RCSlaCtrl.X = moveHorizLocal.x;
-                RCSlaCtrl.Z = moveHorizLocal.y;
-                RCSlaCtrl.Y = moveHorizLocal.z;
+                RCSlaCtrl.X = Mathf.Min(moveHorizLocal.x,0.95f);
+                RCSlaCtrl.Z = Mathf.Min(moveHorizLocal.y,0.95f);
+                RCSlaCtrl.Y = Mathf.Min(moveHorizLocal.z, 0.95f);
             }
             else if (controlState == 2 && engageHeight > vslHeight)
             {
@@ -182,14 +237,38 @@ namespace RCSLandAid
                 //RCSlaCtrl.Z = targetVectLocal.y + moveHorizLocal.y;
                 //RCSlaCtrl.Y = targetVectLocal.z + moveHorizLocal.z;
 
-                RCSlaCtrl.X = SetRCSPower(targetVectLocal.x,moveHorizLocal.x);
-                    RCSlaCtrl.Z = SetRCSPower(targetVectLocal.y,moveHorizLocal.y);
-                    RCSlaCtrl.Y = SetRCSPower(targetVectLocal.z, moveHorizLocal.z);
+                RCSlaCtrl.X = Mathf.Min( SetRCSPower(targetVectLocal.x,moveHorizLocal.x),0.95f);
+                    RCSlaCtrl.Z = Mathf.Min(SetRCSPower(targetVectLocal.y,moveHorizLocal.y),0.95f);
+                    RCSlaCtrl.Y = Mathf.Min(SetRCSPower(targetVectLocal.z, moveHorizLocal.z), 0.95f);
             }
-                
+            
                 
             
         }
+
+        public class SaveAngle
+        {
+            public float angleOff;
+            public Vector3 refAngle;
+        }
+
+        public Vector3 FindUpVector()
+        {
+        List<SaveAngle> anglesList = new List<SaveAngle>();
+        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, vslRef.up), refAngle = vslRef.up });
+        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, -vslRef.up), refAngle = -vslRef.up });
+        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, vslRef.forward), refAngle = vslRef.forward });
+        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, -vslRef.forward), refAngle = -vslRef.forward });
+        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, vslRef.right), refAngle = vslRef.right });
+        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, -vslRef.right), refAngle = -vslRef.right });
+        float toReturnAngle = anglesList.Min(p => p.angleOff);
+        SaveAngle toReturn = anglesList.First(q => q.angleOff == toReturnAngle);
+        
+
+        //print("angle of ref " + toReturn.refAngle+ " " + worldUp.normalized + " " + Vector3.Angle(toReturn.refAngle,worldUp));
+        return toReturn.refAngle;
+        }
+
         public float SetRCSPower(float targetDist, float moveSpd)
         {
             if (Mathf.Abs(moveSpd) < 8)
@@ -209,19 +288,30 @@ namespace RCSLandAid
 
     public class RCSLandingAidWindow : MonoBehaviour, IDrawable
     {
-       public Rect RCSlaWin = new Rect(0, 0, 200, 100);
+       public Rect RCSlaWin = new Rect(0, 0, 180, 70);
 
+        //private bool txtMade = false;
+        //Texture2D BtnTexRed = new Texture2D(1, 1);
+        //Texture2D BtnTexGrn = new Texture2D(1, 1);
         public Vector2 Draw(Vector2 position)
         {
-            print("drawing win2");
+            //print("SAS "+RCSLandingAid.forceSASup);
+            //if (!txtMade)
+            //{
+            //    BtnTexRed.SetPixel(0, 0, new Color(1, 0, 0, .5f));
+            //    BtnTexRed.Apply();
+            //    BtnTexGrn.SetPixel(0, 0, new Color(0, 1, 0, .5f));
+            //    BtnTexGrn.Apply();
+            //    txtMade = true;
+            //}
             var oldSkin = GUI.skin;
             GUI.skin = HighLogic.Skin;
 
             RCSlaWin.x = position.x;
             RCSlaWin.y = position.y;
 
-            //GUI.Window(22334567, RCSlaWin, DrawWin, "Test",GUI.skin.window);
-            RCSlaWin = GUILayout.Window(42334567, RCSlaWin, DrawWin, (string)null, GUI.skin.box);
+            GUI.Window(22334567, RCSlaWin, DrawWin, "",GUI.skin.window);
+            //RCSlaWin = GUILayout.Window(42334567, RCSlaWin, DrawWin, (string)null, GUI.skin.box);
             GUI.skin = oldSkin;
 
             return new Vector2(RCSlaWin.width, RCSlaWin.height);
@@ -229,13 +319,43 @@ namespace RCSLandAid
 
         public void DrawWin(int WindowID)
         {
-            print("drawing win");
-            GUI.Label(new Rect(10, 10, 60, 20), "testing");
+            
+            GUI.Label(new Rect(10, 10, 100, 20), "LandAid Height:");
+            string engageHeightStr = RCSLandingAid.engageHeight.ToString();//same^
+            //GUI.skin.label.alignment = TextAnchor.MiddleRight;
+            //GUI.skin.textField.alignment = TextAnchor.MiddleRight;
+            engageHeightStr = GUI.TextField(new Rect(115, 10, 55, 20), engageHeightStr, 5);//same^
+            try//same^
+            {
+                RCSLandingAid.engageHeight = Convert.ToInt32(engageHeightStr); //convert string to number
+            }
+            catch//same^
+            {
+                engageHeightStr = RCSLandingAid.engageHeight.ToString(); //conversion failed, reset change
+                //GUI.FocusControl(""); //non-number key pressed, return control focus to vessel
+            }
+            if (RCSLandingAid.forceSASup)
+            {
+                //GUI.DrawTexture(new Rect(11, 36, 158, 23), BtnTexGrn);
+                if (GUI.Button(new Rect(10, 35, 160, 25), "Force SAS Up: True"))
+                {
+                    RCSLandingAid.forceSASup = false;
+                }
+            }
+            else
+            {
+                //GUI.DrawTexture(new Rect(11, 36, 158, 23), BtnTexRed);
+                if (GUI.Button(new Rect(10, 35, 160, 25), "Force SAS Up: False"))
+                {
+                    RCSLandingAid.forceSASup = false;
+                }
+            }
+            
         }
 
         public void Update()
         {
-            print("Updated");
+            
         }
     }
 }
