@@ -23,14 +23,22 @@ namespace RCSLandAid
         private IButton RCSla1Btn;
         GameObject lineObj = new GameObject("Line");
         LineRenderer theLine = new LineRenderer();
-        public static bool forceSASup = false;
+        public static bool forceSASup = true;
         //RCSLandingAidWindow RCSwin;
         private bool SASset = false;
         float vslHeight = 0f;
         Part lastRoot = new Part();
+        Quaternion vslRefQuant;
+        Vector3 vslUpRef;
+        private ConfigNode RCSla;
 
+        
+        
         public void Start()
         {
+            RCSla = ConfigNode.Load(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/RCSla.cfg");
+            engageHeight = (float)Convert.ToDouble(RCSla.GetValue("EngageHeight")); 
+            forceSASup = Convert.ToBoolean(RCSla.GetValue("ForceSAS"));    
             FlightGlobals.ActiveVessel.OnFlyByWire += RCSLandAidControl;
             if (ToolbarManager.ToolbarAvailable) //check if toolbar available, load if it is
             {
@@ -161,6 +169,9 @@ namespace RCSLandAid
             if (ToolbarManager.ToolbarAvailable) //if toolbar loaded, destroy button on leaving flight scene
             {
                 RCSla1Btn.Destroy();
+                RCSla.SetValue("EngageHeight", engageHeight.ToString()); 
+                RCSla.SetValue("ForceSAS", forceSASup.ToString());
+                RCSla.Save(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/RCSla.cfg");
             }
         }
         public void FixedUpdate()
@@ -173,9 +184,13 @@ namespace RCSLandAid
                 //refRot.SetFromToRotation(new Vector3(0,0,0), referUp);
                 //FlightGlobals.ActiveVessel.VesselSAS.LockHeading(refRot);
                 //print("angle2 " + Vector3.Angle(FlightGlobals.ActiveVessel.VesselSAS.referenceRotation, referUp));
-                Quaternion refQuant = new Quaternion(0, 0, 0, 0);
-                FlightGlobals.ActiveVessel.VesselSAS.LockHeading(refQuant);
-
+               //print("Set sas ");
+                
+                vslRefQuant = FindUpVector(out vslUpRef);
+                
+                Quaternion refQuant = Quaternion.LookRotation(worldUp, vslUpRef) * vslRefQuant;
+                //Quaternion refQuant = Quaternion.LookRotation(worldUp, vslRef.up - vslRef.forward) * vslRefQuant;
+                FlightGlobals.ActiveVessel.VesselSAS.LockHeading(refQuant, true);
                 SASset = true;
             
 
@@ -184,6 +199,12 @@ namespace RCSLandAid
             {
                 SASset = false;
             }
+            if (SASset)
+            {
+                
+                //print("Set sas " + refQuant);
+            }
+            //print(FlightGlobals.ActiveVessel.VesselSAS.lockedHeading);
             //print("ref " + FlightGlobals.ActiveVessel.VesselSAS.referenceRotation+ " " + FlightGlobals.ActiveVessel.VesselSAS.lockedHeading.eulerAngles+ " " + FlightGlobals.ActiveVessel.VesselSAS.currentRotation.eulerAngles);
             //if (FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.RCS] && controlState > 0 && vslHeight < engageHeight && FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.SAS])
             //{
@@ -246,27 +267,68 @@ namespace RCSLandAid
             
         }
 
+        public enum vslDirection {UP,DOWN,LEFT,RIGHT,FORWARD,BACK}
+        
+
         public class SaveAngle
         {
             public float angleOff;
-            public Vector3 refAngle;
+            public vslDirection refDir;
         }
 
-        public Vector3 FindUpVector()
+        public Quaternion FindUpVector(out Vector3 vslUp)
         {
         List<SaveAngle> anglesList = new List<SaveAngle>();
-        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, vslRef.up), refAngle = vslRef.up });
-        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, -vslRef.up), refAngle = -vslRef.up });
-        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, vslRef.forward), refAngle = vslRef.forward });
-        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, -vslRef.forward), refAngle = -vslRef.forward });
-        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, vslRef.right), refAngle = vslRef.right });
-        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, -vslRef.right), refAngle = -vslRef.right });
+        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, vslRef.up), refDir = vslDirection.UP });
+        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, -vslRef.up), refDir = vslDirection.DOWN });
+        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, vslRef.forward), refDir = vslDirection.FORWARD });
+        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, -vslRef.forward), refDir = vslDirection.BACK });
+        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, vslRef.right), refDir = vslDirection.RIGHT });
+        anglesList.Add(new SaveAngle() { angleOff = Vector3.Angle(worldUp, -vslRef.right), refDir = vslDirection.LEFT });
         float toReturnAngle = anglesList.Min(p => p.angleOff);
         SaveAngle toReturn = anglesList.First(q => q.angleOff == toReturnAngle);
-        
+        vslRefQuant = Quaternion.Euler(90, 0, 0);
+        vslUp = -vslRef.forward;
+        //print("ref ang " +toReturn.refDir);
+        if (toReturn.refDir == vslDirection.UP)
+            {
+            vslRefQuant = Quaternion.Euler(90, 0, 0);
+            vslUp = -vslRef.forward;
+            //print("up");
+            }
+        else if (toReturn.refDir == vslDirection.DOWN)
+            {
+                vslRefQuant = Quaternion.Euler(-90, 0, 0);
+                vslUp = vslRef.forward;
+                //print("down");
+            }
+        else if (toReturn.refDir == vslDirection.FORWARD)
+            {
+                vslRefQuant = Quaternion.Euler(0, 0, 0);
+                vslUp = vslRef.up;
+                //print("3");
+            }
+        else if (toReturn.refDir == vslDirection.BACK)
+            {
+                vslRefQuant = Quaternion.Euler(0, 180, 0);
+                vslUp = vslRef.up;
+                //print("4");
+            }
+        else if (toReturn.refDir == vslDirection.RIGHT)
+            {
+                vslRefQuant = Quaternion.Euler(0, -90, 0);
+                vslUp = vslRef.up;
+                //print("5");
+            }
+        else if (toReturn.refDir == vslDirection.LEFT)
+            {
+                vslRefQuant = Quaternion.Euler(0, 90, 0);
+                vslUp = vslRef.up;
+                //print("6");
+            }
 
         //print("angle of ref " + toReturn.refAngle+ " " + worldUp.normalized + " " + Vector3.Angle(toReturn.refAngle,worldUp));
-        return toReturn.refAngle;
+        return vslRefQuant;
         }
 
         public float SetRCSPower(float targetDist, float moveSpd)
@@ -347,7 +409,7 @@ namespace RCSLandAid
                 //GUI.DrawTexture(new Rect(11, 36, 158, 23), BtnTexRed);
                 if (GUI.Button(new Rect(10, 35, 160, 25), "Force SAS Up: False"))
                 {
-                    RCSLandingAid.forceSASup = false;
+                    RCSLandingAid.forceSASup = true;
                 }
             }
             
