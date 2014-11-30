@@ -31,11 +31,14 @@ namespace RCSLandAid
         Quaternion vslRefQuant;
         Vector3 vslUpRef;
         private ConfigNode RCSla;
-
+        public float vslMass = 0;
+        public float vslRCSpwr = 0;
         
         
+                
         public void Start()
         {
+            print("RCS Landing Aid Ver. 1.3 start.");
             RCSla = ConfigNode.Load(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/RCSla.cfg");
             engageHeight = (float)Convert.ToDouble(RCSla.GetValue("EngageHeight")); 
             forceSASup = Convert.ToBoolean(RCSla.GetValue("ForceSAS"));    
@@ -226,8 +229,11 @@ namespace RCSLandAid
             surVect = FlightGlobals.ActiveVessel.srf_velocity;
             vslRef = FlightGlobals.ActiveVessel.ReferenceTransform;
             worldUp = vslRef.position - FlightGlobals.ActiveVessel.mainBody.position;
+            //moveHoriz = Vector3.Project(targetLocation,)
+            
             moveHoriz = Vector3.Exclude(worldUp, surVect);
             moveHorizLocal = vslRef.InverseTransformDirection(moveHoriz);
+            
             
             if (FlightGlobals.ActiveVessel.mainBody.ocean)
             {
@@ -238,7 +244,7 @@ namespace RCSLandAid
                 vslHeight = FlightGlobals.ActiveVessel.heightFromTerrain;
             }
             //print("hgt " + engageHeight + " " + vslHeight);
-            if (controlState == 1 && engageHeight > vslHeight)
+            if (controlState == 1 && engageHeight > vslHeight) //just cancel velocity as fast as we can
             {
                 RCSlaCtrl.X = Mathf.Min(moveHorizLocal.x,0.95f);
                 RCSlaCtrl.Z = Mathf.Min(moveHorizLocal.y,0.95f);
@@ -246,9 +252,55 @@ namespace RCSLandAid
             }
             else if (controlState == 2 && engageHeight > vslHeight)
             {
-               
+
                 Vector3 targetVect = Vector3.Exclude(worldUp, vslRef.position - targetLocation);
-                Vector3 targetVectLocal = (vslRef.InverseTransformDirection(targetVect))/8;
+                Vector3 targetVectLocal = (vslRef.InverseTransformDirection(targetVect)); //our vector, as distance to target, in coords RCS uses
+                //start new vector stuff
+                Vector3 targetSpotDir = Vector3.Project(targetLocation - FlightGlobals.ActiveVessel.mainBody.position, worldUp); //find closest point on vessel up line
+                Vector3 targetSpotLoc = FlightGlobals.ActiveVessel.mainBody.position + targetSpotDir; //convert from distance to location vector
+                Vector3 targetSpotTravel = targetSpotLoc - targetLocation; //find travel from vessel up line to target spot
+                Vector3 targetSpotDirLocal = vslRef.InverseTransformDirection(targetSpotTravel);
+                //end new vector stuff
+
+                //print("target " + targetSpotDirLocal + " " + targetVectLocal);
+                //Quaternion findTarget = new Quaternion();
+                //findTarget.SetLookRotation(worldUp,targetLocation);
+                //findTarget.ToAngleAxis(90f,)
+                //findTarget.position = FlightGlobals.ActiveVessel.transform.position;
+                //findTarget.rotation.SetLookRotation(worldUp, targetLocation);
+                //findTarget
+                //RCSlaCtrl.X = SetRCSPowerVer2(targetVectLocal.x, moveHorizLocal.x); //no bounce control
+                RCSlaCtrl.X = SetRCSPowerVer3(targetVectLocal.x, moveHorizLocal.x);
+                RCSlaCtrl.Y = SetRCSPowerVer3(targetVectLocal.z, moveHorizLocal.z);
+                RCSlaCtrl.Z = SetRCSPowerVer3(targetVectLocal.y, moveHorizLocal.y);
+                //print("Z stuff " + targetVectLocal.y + " " + moveHorizLocal.y); 
+            }
+        }
+                //float targetXVel = Mathf.Sqrt(0.2f * Mathf.Abs(targetVectLocal.x));
+                //if(targetVectLocal.x < 0)
+                //{
+                //    targetXVel = targetXVel * -1f;
+                //}
+                //float targetYVel = Mathf.Sqrt(0.2f * Mathf.Abs(targetVectLocal.y));
+                //if (targetVectLocal.y < 0)
+                //{
+                //    targetYVel = targetYVel * -1f;
+                //}
+                //float targetZVel = Mathf.Sqrt(0.2f * Mathf.Abs(targetVectLocal.z));
+                //if (targetVectLocal.z < 0)
+                //{
+                //    targetZVel = targetZVel * -1f;
+                //}
+
+
+                
+                //float actualXVel = moveHorizLocal.x;
+                //float actualYVel = moveHorizLocal.y;
+                //float actualZVel = moveHorizLocal.z;
+                //print("vects " + targetVectLocal + " " + moveHorizLocal);
+                //print("vectssfd " + targetXVel + " " + actualXVel);
+                
+                
                 //print("ctrl " + vslRef.position + targetVectLocal + moveHorizLocal);
                 //float targetX = targetVectLocal.x + moveHorizLocal.x;
                 //float targetZ = targetVectLocal.y + moveHorizLocal.y;
@@ -258,13 +310,88 @@ namespace RCSLandAid
                 //RCSlaCtrl.Z = targetVectLocal.y + moveHorizLocal.y;
                 //RCSlaCtrl.Y = targetVectLocal.z + moveHorizLocal.z;
 
-                RCSlaCtrl.X = Mathf.Min( SetRCSPower(targetVectLocal.x,moveHorizLocal.x),0.95f);
-                    RCSlaCtrl.Z = Mathf.Min(SetRCSPower(targetVectLocal.y,moveHorizLocal.y),0.95f);
-                    RCSlaCtrl.Y = Mathf.Min(SetRCSPower(targetVectLocal.z, moveHorizLocal.z), 0.95f);
-            }
+                //RCSlaCtrl.X = Mathf.Min( SetRCSPower(targetVectLocal.x,moveHorizLocal.x),0.95f);
+                //    RCSlaCtrl.Z = Mathf.Min(SetRCSPower(targetVectLocal.y,moveHorizLocal.y),0.95f);
+                //    RCSlaCtrl.Y = Mathf.Min(SetRCSPower(targetVectLocal.z, moveHorizLocal.z), 0.95f);
+            
             
                 
             
+        
+        public float SetRCSPowerVer3(float targetDist, float actualVel) //need to limit return value by distance to stop bouncing
+        {
+            float rcsThrust = SetRCSPowerVer2(targetDist, actualVel);
+            if(rcsThrust == 0f) //error check, this should never hit using floats but....
+            {
+                return rcsThrust;
+            }
+            if(rcsThrust * targetDist > 0) //make sure we are thrusting in direction of target, otherwise don't bounce compensate, this is true if both values positive, or both negative
+            {
+                if(rcsThrust > 0) 
+                {
+                    return Mathf.Min(rcsThrust, targetDist); //moving in positive direction, take smaller number
+                }
+                else if(rcsThrust< 0)
+                {
+                    return Mathf.Max(rcsThrust, targetDist);//moving in  negative direction, take larger number, -.1 is larger then -.2
+                }
+            }
+            return rcsThrust;
+
+        }
+
+        public float SetRCSPowerVer2(float targetDist, float actualVel)
+        {
+            try
+            {
+                float targetVel = Mathf.Sqrt(0.2f * Mathf.Abs(targetDist)); //calc max speed we could be going for this distance to target
+                actualVel = actualVel * -1f; //this vector is backwards for some reason
+
+                if (targetDist < 0) //had to use an ABS above, bring the negative sign back if needed
+                {
+                    targetVel = targetVel * -1f;
+                }
+                
+               // print("vel check " + targetVel + " " + targetDist + " " + actualVel);
+                if (targetVel < 0)//target is negative, relatively
+                {
+                    if (actualVel > -5f && actualVel > (targetVel * .90)) //if we are under 5 m/s and 95% of target vel, accellerate towards target
+                    {
+                        return -0.95f;
+                    }
+                    else if (actualVel < targetVel * 1.01 || actualVel < -5.5) //we are faster then target vel, or we are over speed limit, slow down
+                    {
+                        return 0.95f;
+                    }
+                    else
+                    {
+                        return 0f; //we are good, do nothing.
+                    }
+                }
+                else if(targetDist > 0)//target must be positive, relatively
+                {
+                    if (actualVel < 5f && actualVel < (targetVel * .90)) //if we are under 5 m/s and 95% of target vel, accellerate towards target
+                    {
+                        return 0.95f;
+                    }
+                    else if (actualVel > targetVel * 1.01 || actualVel > 5.5) //we are faster then target vel, or we are over speed limit, slow down
+                    {
+                        return -0.95f;
+                    }
+                    else
+                    {
+                        return 0f; //we are good, do nothing.
+                    }
+                }
+                
+                
+                    return 0f; //should never hit this, but just in case
+                
+            }
+            catch
+            {
+                return 0f; //if the square root function above goes wrong, reutrn 0
+            }
         }
 
         public enum vslDirection {UP,DOWN,LEFT,RIGHT,FORWARD,BACK}
