@@ -23,7 +23,7 @@ namespace RCSLandAid
         private IButton RCSla1Btn;
         GameObject lineObj = new GameObject("Line");
         LineRenderer theLine = new LineRenderer();
-        public static bool forceSASup = true;
+        //public static bool forceSASup = true;
         //RCSLandingAidWindow RCSwin;
         private bool SASset = false;
         float vslHeight = 0f;
@@ -33,16 +33,18 @@ namespace RCSLandAid
         private ConfigNode RCSla;
         public float vslMass = 0;
         public float vslRCSpwr = 0;
+        public float thisBodyAccel = 1F;
+        private int frameCount = 0;
         
         
                 
         public void Start()
         {
-            print("RCS Landing Aid Ver. 1.3 start.");
+            print("Landing Aid Ver. 2.0 start.");
             RCSla = ConfigNode.Load(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/RCSla.cfg");
             engageHeight = (float)Convert.ToDouble(RCSla.GetValue("EngageHeight")); 
-            forceSASup = Convert.ToBoolean(RCSla.GetValue("ForceSAS"));    
-            FlightGlobals.ActiveVessel.OnFlyByWire += RCSLandAidControl;
+            //forceSASup = Convert.ToBoolean(RCSla.GetValue("ForceSAS"));    
+            //FlightGlobals.ActiveVessel.OnFlyByWire += RCSLandAidControl;
             if (ToolbarManager.ToolbarAvailable) //check if toolbar available, load if it is
             {
 
@@ -150,19 +152,19 @@ namespace RCSLandAid
                     }
                 }
             }
-            if (FlightGlobals.ActiveVessel.rootPart != lastRoot)
-            {
-                try
-                {
-                    FlightGlobals.ActiveVessel.OnFlyByWire -= RCSLandAidControl;
-                }
-                catch
-                {
+            //if (FlightGlobals.ActiveVessel.rootPart != lastRoot)
+            //{
+            //    try
+            //    {
+            //        FlightGlobals.ActiveVessel.OnFlyByWire -= RCSLandAidControl;
+            //    }
+            //    catch
+            //    {
 
-                }
-                FlightGlobals.ActiveVessel.OnFlyByWire += RCSLandAidControl;
-                lastRoot = FlightGlobals.ActiveVessel.rootPart;
-            }
+            //    }
+            //    FlightGlobals.ActiveVessel.OnFlyByWire += RCSLandAidControl;
+            //    lastRoot = FlightGlobals.ActiveVessel.rootPart;
+            //}
             
         }
 
@@ -173,13 +175,13 @@ namespace RCSLandAid
             {
                 RCSla1Btn.Destroy();
                 RCSla.SetValue("EngageHeight", engageHeight.ToString()); 
-                RCSla.SetValue("ForceSAS", forceSASup.ToString());
+                //RCSla.SetValue("ForceSAS", forceSASup.ToString());
                 RCSla.Save(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/RCSla.cfg");
             }
         }
         public void FixedUpdate()
         {
-            if (FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.RCS] && controlState > 0 && vslHeight < engageHeight && FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.SAS] && !SASset && forceSASup)
+            if (controlState > 0 && vslHeight < engageHeight && FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.SAS] && !SASset)// && forceSASup)
             {
                 //Quaternion refRot = new Quaternion(0, 0, 0, 0);
                // Vector3 referUp = FindUpVector();
@@ -188,25 +190,119 @@ namespace RCSLandAid
                 //FlightGlobals.ActiveVessel.VesselSAS.LockHeading(refRot);
                 //print("angle2 " + Vector3.Angle(FlightGlobals.ActiveVessel.VesselSAS.referenceRotation, referUp));
                //print("Set sas ");
+
+                //calculate our available sideways accel at 7 degrees, our max tip is 10 degrees (set later)
+                float currGrav = (float)(FlightGlobals.ActiveVessel.mainBody.gravParameter / (Math.Pow((FlightGlobals.ActiveVessel.altitude + FlightGlobals.ActiveVessel.mainBody.Radius),2)));
+                thisBodyAccel = (float)(Mathf.Tan(Mathf.Deg2Rad*1) * currGrav);
+                 //print("body accel " + thisBodyAccel + " " + currGrav);
                 
                 vslRefQuant = FindUpVector(out vslUpRef);
-                
-                Quaternion refQuant = Quaternion.LookRotation(worldUp, vslUpRef) * vslRefQuant;
+
+                 Quaternion vslRefQuant2fasd = Quaternion.LookRotation(worldUp, vslUpRef) * vslRefQuant;
                 //Quaternion refQuant = Quaternion.LookRotation(worldUp, vslRef.up - vslRef.forward) * vslRefQuant;
-                FlightGlobals.ActiveVessel.VesselSAS.LockHeading(refQuant, true);
+                 //FlightGlobals.ActiveVessel.VesselSAS.LockHeading(vslRefQuant2fasd, true);  //no longer locking directlyup
                 SASset = true;
+                frameCount = 0;
             
 
             }
-            if(!FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.RCS] || controlState == 0 || vslHeight > engageHeight || !FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.SAS])
+            if(controlState == 0 || vslHeight > engageHeight || !FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.SAS])
             {
                 SASset = false;
             }
-            if (SASset)
-            {
+            //if (SASset)
+            //{
                 
-                //print("Set sas " + refQuant);
+            //    //print("Set sas " + refQuant);
+            //}
+            // print("ctrl " + vslRef.position);
+            surVect = FlightGlobals.ActiveVessel.srf_velocity;
+            vslRef = FlightGlobals.ActiveVessel.ReferenceTransform;
+            worldUp = vslRef.position - FlightGlobals.ActiveVessel.mainBody.position;
+            //moveHoriz = Vector3.Project(targetLocation,)
+
+            moveHoriz = Vector3.Exclude(worldUp, surVect);
+            moveHorizLocal = vslRef.InverseTransformDirection(moveHoriz);
+
+
+            if (FlightGlobals.ActiveVessel.mainBody.ocean)
+            {
+                vslHeight = (float)Math.Min(FlightGlobals.ActiveVessel.altitude, FlightGlobals.ActiveVessel.heightFromTerrain);
             }
+            else
+            {
+                vslHeight = FlightGlobals.ActiveVessel.heightFromTerrain;
+            }
+            //print("hgt " + engageHeight + " " + vslHeight);
+            if (controlState == 1 && engageHeight > vslHeight) //just cancel velocity as fast as we can
+            {
+                //RCSlaCtrl.X = Mathf.Min(moveHorizLocal.x,0.95f);
+                //RCSlaCtrl.Z = Mathf.Min(moveHorizLocal.y,0.95f);
+                //RCSlaCtrl.Y = Mathf.Min(moveHorizLocal.z, 0.95f);
+                TipOverControl(moveHorizLocal, new Vector3(0,0,0));
+            }
+            else if (controlState == 2 && engageHeight > vslHeight)
+            {
+
+                Vector3 targetVect = Vector3.Exclude(worldUp, targetLocation - vslRef.position); //vector from vessel to target
+                Vector3 targetVectLocal = (vslRef.InverseTransformDirection(targetVect)); //our vector, as distance to target, in coords RCS uses
+
+                float targetVel = Mathf.Sqrt(2f * Mathf.Abs(targetVectLocal.magnitude) * (thisBodyAccel*3)); //calc max speed we could be going for this distance to target. desired vel = sqaure root of (2*distToTarget*desiredAccel)
+                
+                Vector3 targetVectLocalModifiedSpeed = targetVectLocal.normalized * targetVel; //this is our desired vector for this distance from target
+                Vector3 moveSpeedTorwardTarget = Vector3.Project(moveHorizLocal, targetVectLocal); //component of our motion to/from target
+                Vector3 moveSpeedSidewaysFromTarget = moveSpeedTorwardTarget - moveHorizLocal;
+
+
+                Vector3 currentVectorDiff = moveSpeedTorwardTarget - targetVectLocalModifiedSpeed; //find our difference to pass to tip over control
+                TipOverControl(currentVectorDiff, moveSpeedSidewaysFromTarget); //pass sideways speed raw, we want to cancel it asap.
+            }
+        }
+
+        public void TipOverControl(Vector3 targetVect, Vector3 sideWaysVect)
+        {
+            //targetVect is our current "movement" relative to our target. In move to point mode, target is moving also as it is the desired velocity for our distance to target
+            //worldUp is straight up
+            float degTipDesiredForwards = Mathf.Min(20,(targetVect.magnitude/(thisBodyAccel*4))) *  -1f; //degrees to tip, make negative to tip away
+            float degTipDesiredSideways = Mathf.Min(20, (sideWaysVect.magnitude / (thisBodyAccel * 4)));// * -1f; //degrees to tip, make negative to tip away
+            Vector3 sasDirectionSidewaysOnly = Vector3.RotateTowards(worldUp, vslRef.TransformDirection(sideWaysVect), (Mathf.Deg2Rad * degTipDesiredSideways), 0f);
+            Vector3 sasDirection = Vector3.RotateTowards(sasDirectionSidewaysOnly, vslRef.TransformDirection(targetVect), (Mathf.Deg2Rad * degTipDesiredForwards), 0f);
+            if (frameCount == 0)
+            {
+                //print("seting sas");
+                FlightGlobals.ActiveVessel.VesselSAS.LockHeading(Quaternion.LookRotation(sasDirection, vslUpRef) * vslRefQuant, false);  //no longer locking directlyup
+
+            }
+                frameCount = frameCount + 1;
+                if (frameCount == 5)
+                {
+                    frameCount = 0;
+                }
+                   
+            //print("ang check" + Vector3.Angle(worldUp, sasDirection));
+        }
+
+        public void TipOverControlBackup(Vector3 targetVect, Vector3 sideWaysVect) //working code for speed cancel before adding sideways cancel
+        {
+            //targetVect is our current "movement" relative to our target. In move to point mode, target is moving also as it is the desired velocity for our distance to target
+            //worldUp is straight up
+            float degTipDesired = Mathf.Min(20, (targetVect.magnitude / (thisBodyAccel * 4))) * -1f; //degrees to tip, make negative to tip away
+            Vector3 sasDirection = Vector3.RotateTowards(worldUp, vslRef.TransformDirection(targetVect), (Mathf.Deg2Rad * degTipDesired), 0f);
+            if (frameCount == 0)
+            {
+                //print("seting sas");
+                FlightGlobals.ActiveVessel.VesselSAS.LockHeading(Quaternion.LookRotation(sasDirection, vslUpRef) * vslRefQuant, false);  //no longer locking directlyup
+
+            }
+            frameCount = frameCount + 1;
+            if (frameCount == 5)
+            {
+                frameCount = 0;
+            }
+
+            //print("ang check" + Vector3.Angle(worldUp, sasDirection));
+        }
+
             //print(FlightGlobals.ActiveVessel.VesselSAS.lockedHeading);
             //print("ref " + FlightGlobals.ActiveVessel.VesselSAS.referenceRotation+ " " + FlightGlobals.ActiveVessel.VesselSAS.lockedHeading.eulerAngles+ " " + FlightGlobals.ActiveVessel.VesselSAS.currentRotation.eulerAngles);
             //if (FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.RCS] && controlState > 0 && vslHeight < engageHeight && FlightGlobals.ActiveVessel.ActionGroups[KSPActionGroup.SAS])
@@ -221,45 +317,53 @@ namespace RCSLandAid
             //}
             //print("angle " + Quaternion.Angle(FlightGlobals.ActiveVessel.VesselSAS.currentRotation, FlightGlobals.ActiveVessel.VesselSAS.referenceRotation));
            // print(SASset.ToString() + FindUpVector().normalized + "A" + worldUp.normalized + "B" + FlightGlobals.ActiveVessel.VesselSAS.referenceRotation + "C" + FlightGlobals.ActiveVessel.VesselSAS.lockedHeading.eulerAngles.normalized + "D");
-        }
+        
 
-        public void RCSLandAidControl(FlightCtrlState RCSlaCtrl)
-        {
-           // print("ctrl " + vslRef.position);
-            surVect = FlightGlobals.ActiveVessel.srf_velocity;
-            vslRef = FlightGlobals.ActiveVessel.ReferenceTransform;
-            worldUp = vslRef.position - FlightGlobals.ActiveVessel.mainBody.position;
-            //moveHoriz = Vector3.Project(targetLocation,)
+        //public void RCSLandAidControl(FlightCtrlState RCSlaCtrl)
+        //{
+        //   // print("ctrl " + vslRef.position);
+        //    surVect = FlightGlobals.ActiveVessel.srf_velocity;
+        //    vslRef = FlightGlobals.ActiveVessel.ReferenceTransform;
+        //    worldUp = vslRef.position - FlightGlobals.ActiveVessel.mainBody.position;
+        //    //moveHoriz = Vector3.Project(targetLocation,)
             
-            moveHoriz = Vector3.Exclude(worldUp, surVect);
-            moveHorizLocal = vslRef.InverseTransformDirection(moveHoriz);
+        //    moveHoriz = Vector3.Exclude(worldUp, surVect);
+        //    moveHorizLocal = vslRef.InverseTransformDirection(moveHoriz);
             
             
-            if (FlightGlobals.ActiveVessel.mainBody.ocean)
-            {
-                vslHeight = (float)Math.Min(FlightGlobals.ActiveVessel.altitude, FlightGlobals.ActiveVessel.heightFromTerrain);
-            }
-            else
-            {
-                vslHeight = FlightGlobals.ActiveVessel.heightFromTerrain;
-            }
-            //print("hgt " + engageHeight + " " + vslHeight);
-            if (controlState == 1 && engageHeight > vslHeight) //just cancel velocity as fast as we can
-            {
-                RCSlaCtrl.X = Mathf.Min(moveHorizLocal.x,0.95f);
-                RCSlaCtrl.Z = Mathf.Min(moveHorizLocal.y,0.95f);
-                RCSlaCtrl.Y = Mathf.Min(moveHorizLocal.z, 0.95f);
-            }
-            else if (controlState == 2 && engageHeight > vslHeight)
-            {
+        //    if (FlightGlobals.ActiveVessel.mainBody.ocean)
+        //    {
+        //        vslHeight = (float)Math.Min(FlightGlobals.ActiveVessel.altitude, FlightGlobals.ActiveVessel.heightFromTerrain);
+        //    }
+        //    else
+        //    {
+        //        vslHeight = FlightGlobals.ActiveVessel.heightFromTerrain;
+        //    }
+        //    //print("hgt " + engageHeight + " " + vslHeight);
+        //    if (controlState == 1 && engageHeight > vslHeight) //just cancel velocity as fast as we can
+        //    {
+        //        //RCSlaCtrl.X = Mathf.Min(moveHorizLocal.x,0.95f);
+        //        //RCSlaCtrl.Z = Mathf.Min(moveHorizLocal.y,0.95f);
+        //        //RCSlaCtrl.Y = Mathf.Min(moveHorizLocal.z, 0.95f);
+        //        TipOverControl(moveHorizLocal, vslRefQuant);
+        //    }
+        //    else if (controlState == 2 && engageHeight > vslHeight)
+        //    {
 
-                Vector3 targetVect = Vector3.Exclude(worldUp, vslRef.position - targetLocation);
-                Vector3 targetVectLocal = (vslRef.InverseTransformDirection(targetVect)); //our vector, as distance to target, in coords RCS uses
+        //        Vector3 targetVect = Vector3.Exclude(worldUp, targetLocation-vslRef.position); //vector from vessel to target
+        //        Vector3 targetVectLocal = (vslRef.InverseTransformDirection(targetVect)); //our vector, as distance to target, in coords RCS uses
+
+        //        float targetVel = Mathf.Sqrt(0.2f * Mathf.Abs(targetVectLocal.magnitude)); //calc max speed we could be going for this distance to target
+        //        Vector3 targetVectLocalModifiedSpeed = targetVectLocal.normalized * targetVel; //this is our desired vector for this distance from target
+        //        Vector3 currentVectorDiff = moveHorizLocal - targetVectLocalModifiedSpeed;
+        //    }
+        //}
+        
                 //start new vector stuff
-                Vector3 targetSpotDir = Vector3.Project(targetLocation - FlightGlobals.ActiveVessel.mainBody.position, worldUp); //find closest point on vessel up line
-                Vector3 targetSpotLoc = FlightGlobals.ActiveVessel.mainBody.position + targetSpotDir; //convert from distance to location vector
-                Vector3 targetSpotTravel = targetSpotLoc - targetLocation; //find travel from vessel up line to target spot
-                Vector3 targetSpotDirLocal = vslRef.InverseTransformDirection(targetSpotTravel);
+                //////Vector3 targetSpotDir = Vector3.Project(targetLocation - FlightGlobals.ActiveVessel.mainBody.position, worldUp); //find closest point on vessel up line
+                //////Vector3 targetSpotLoc = FlightGlobals.ActiveVessel.mainBody.position + targetSpotDir; //convert from distance to location vector
+                //////Vector3 targetSpotTravel = targetSpotLoc - targetLocation; //find travel from vessel up line to target spot
+                //////Vector3 targetSpotDirLocal = vslRef.InverseTransformDirection(targetSpotTravel);
                 //end new vector stuff
 
                 //print("target " + targetSpotDirLocal + " " + targetVectLocal);
@@ -270,13 +374,11 @@ namespace RCSLandAid
                 //findTarget.rotation.SetLookRotation(worldUp, targetLocation);
                 //findTarget
                 //RCSlaCtrl.X = SetRCSPowerVer2(targetVectLocal.x, moveHorizLocal.x); //no bounce control
-                RCSlaCtrl.X = SetRCSPowerVer3(targetVectLocal.x, moveHorizLocal.x);
-                RCSlaCtrl.Y = SetRCSPowerVer3(targetVectLocal.z, moveHorizLocal.z);
-                RCSlaCtrl.Z = SetRCSPowerVer3(targetVectLocal.y, moveHorizLocal.y);
+                //////RCSlaCtrl.X = SetRCSPowerVer3(targetVectLocal.x, moveHorizLocal.x); //the 3 last working lines
+                //////RCSlaCtrl.Y = SetRCSPowerVer3(targetVectLocal.z, moveHorizLocal.z);
+                //////RCSlaCtrl.Z = SetRCSPowerVer3(targetVectLocal.y, moveHorizLocal.y);
                 //print("Z stuff " + targetVectLocal.y + " " + moveHorizLocal.y); 
-            }
-        }
-                //float targetXVel = Mathf.Sqrt(0.2f * Mathf.Abs(targetVectLocal.x));
+          //float targetXVel = Mathf.Sqrt(0.2f * Mathf.Abs(targetVectLocal.x));
                 //if(targetVectLocal.x < 0)
                 //{
                 //    targetXVel = targetXVel * -1f;
@@ -523,22 +625,22 @@ namespace RCSLandAid
                 engageHeightStr = RCSLandingAid.engageHeight.ToString(); //conversion failed, reset change
                 //GUI.FocusControl(""); //non-number key pressed, return control focus to vessel
             }
-            if (RCSLandingAid.forceSASup)
-            {
-                //GUI.DrawTexture(new Rect(11, 36, 158, 23), BtnTexGrn);
-                if (GUI.Button(new Rect(10, 35, 160, 25), "Force SAS Up: True"))
-                {
-                    RCSLandingAid.forceSASup = false;
-                }
-            }
-            else
-            {
-                //GUI.DrawTexture(new Rect(11, 36, 158, 23), BtnTexRed);
-                if (GUI.Button(new Rect(10, 35, 160, 25), "Force SAS Up: False"))
-                {
-                    RCSLandingAid.forceSASup = true;
-                }
-            }
+            //if (RCSLandingAid.forceSASup)
+            //{
+            //    //GUI.DrawTexture(new Rect(11, 36, 158, 23), BtnTexGrn);
+            //    if (GUI.Button(new Rect(10, 35, 160, 25), "Force SAS Up: True"))
+            //    {
+            //        RCSLandingAid.forceSASup = false;
+            //    }
+            //}
+            //else
+            //{
+            //    //GUI.DrawTexture(new Rect(11, 36, 158, 23), BtnTexRed);
+            //    if (GUI.Button(new Rect(10, 35, 160, 25), "Force SAS Up: False"))
+            //    {
+            //        RCSLandingAid.forceSASup = true;
+            //    }
+            //}
             
         }
 
