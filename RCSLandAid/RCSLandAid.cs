@@ -40,7 +40,7 @@ namespace RCSLandAid
                 
         public void Start()
         {
-            print("Landing Aid Ver. 2.0 start.");
+            print("Landing Aid Ver. 2.1 start.");
             RCSla = ConfigNode.Load(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/RCSla.cfg");
             engageHeight = (float)Convert.ToDouble(RCSla.GetValue("EngageHeight")); 
             //forceSASup = Convert.ToBoolean(RCSla.GetValue("ForceSAS"));    
@@ -270,7 +270,7 @@ namespace RCSLandAid
             if (frameCount == 0)
             {
                 //print("seting sas");
-                FlightGlobals.ActiveVessel.VesselSAS.LockHeading(Quaternion.LookRotation(sasDirection, vslUpRef) * vslRefQuant, false);  //no longer locking directlyup
+                FlightGlobals.ActiveVessel.Autopilot.SAS.LockHeading(Quaternion.LookRotation(sasDirection, vslUpRef) * vslRefQuant, false);  //no longer locking directlyup
 
             }
                 frameCount = frameCount + 1;
@@ -291,7 +291,8 @@ namespace RCSLandAid
             if (frameCount == 0)
             {
                 //print("seting sas");
-                FlightGlobals.ActiveVessel.VesselSAS.LockHeading(Quaternion.LookRotation(sasDirection, vslUpRef) * vslRefQuant, false);  //no longer locking directlyup
+                
+                FlightGlobals.ActiveVessel.Autopilot.SAS.LockHeading(Quaternion.LookRotation(sasDirection, vslUpRef) * vslRefQuant, false);  //no longer locking directlyup
 
             }
             frameCount = frameCount + 1;
