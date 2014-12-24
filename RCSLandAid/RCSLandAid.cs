@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using UnityEngine;
+using System.IO;
+
 
 namespace RCSLandAid
 {
@@ -35,12 +37,28 @@ namespace RCSLandAid
         public float vslRCSpwr = 0;
         public float thisBodyAccel = 1F;
         private int frameCount = 0;
-        
+        ApplicationLauncherButton LAButton = null; //stock toolbar button instance
+        bool checkBlizzyToolbar = false;
+        Texture2D btnRed = new Texture2D(24, 24);
+        Texture2D btnBlue = new Texture2D(24, 24);
+        Texture2D btnGray = new Texture2D(24, 24);
+        bool showLAMenu = false;
+        Rect LASettingsWin = new Rect(Screen.width-200, 40, 100, 70);
         
                 
         public void Start()
         {
-            print("Landing Aid Ver. 2.1 start.");
+            print("Landing Aid Ver. 2.1a start.");
+            RenderingManager.AddToPostDrawQueue(0, LAOnDraw); //GUI window hook
+            byte[] importTxtRed = File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/iconRed.png"); //load our button textures
+            byte[] importTxtBlue = File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/iconBlue.png");
+            byte[] importTxt = File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/iconWhiteB.png");
+            btnRed.LoadImage(importTxtRed);
+            btnRed.Apply();
+            btnBlue.LoadImage(importTxtBlue);
+            btnBlue.Apply();
+            btnGray.LoadImage(importTxt);
+            btnGray.Apply();
             RCSla = ConfigNode.Load(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/RCSla.cfg");
             engageHeight = (float)Convert.ToDouble(RCSla.GetValue("EngageHeight")); 
             //forceSASup = Convert.ToBoolean(RCSla.GetValue("ForceSAS"));    
@@ -64,7 +82,14 @@ namespace RCSLandAid
                         RightClick();
                     }
                 };
-                
+                checkBlizzyToolbar = true;
+            }
+            else
+            {
+                //AGXShow = true; //toolbar not installed, show AGX regardless
+                //now using stock toolbar as fallback
+                LAButton = ApplicationLauncher.Instance.AddModApplication(onStockToolbarClick, onStockToolbarClick, DummyVoid, DummyVoid, DummyVoid, DummyVoid, ApplicationLauncher.AppScenes.FLIGHT, (Texture)GameDatabase.Instance.GetTexture("Diazo/RCSLandAid/iconWhiteB", false));
+                checkBlizzyToolbar = false;
             }
            //RCSLandingAidWindow RCSwin = new RCSLandingAidWindow();
 
@@ -78,13 +103,48 @@ namespace RCSLandAid
 
         }
 
+        public void LAOnDraw()
+        {
+            if(showLAMenu)
+            {
+                LASettingsWin = GUI.Window(67347792, LASettingsWin, DrawWin, "Auto Actions", HighLogic.Skin.window);
+            }
+        }
+
+        public void DummyVoid()
+        {
+
+        }
+        public void onStockToolbarClick()
+        {
+            
+                //print("mouse " + Input.GetMouseButtonUp(1) + Input.GetMouseButtonDown(1));
+                if (Input.GetMouseButtonUp(1))
+                {
+                    RightClick();
+                }
+                else
+                {
+                   LeftClick();
+                }
+            
+        }
+
         public void LeftClick()
         {
             if (controlState == 0)
             {
                 controlState = 1;
-                RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconBlue";
-                RCSla1Btn.Drawable = null;
+                if (checkBlizzyToolbar)
+                {
+                    RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconBlue";
+                    RCSla1Btn.Drawable = null;
+                }
+                else
+                {
+                    LAButton.SetTexture(btnBlue);
+                    showLAMenu = false;
+                }
                 selectingTarget = false;
                 targetSelected = false;
             }
@@ -94,8 +154,16 @@ namespace RCSLandAid
                 targetSelected = false;
                 selectingTarget = false;
                 theLine.SetWidth(0, 0);
-                RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconWhiteB";
-                RCSla1Btn.Drawable = null;
+                if (checkBlizzyToolbar)
+                {
+                    RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconWhiteB";
+                    RCSla1Btn.Drawable = null;
+                }
+                else
+                {
+                    LAButton.SetTexture(btnGray);
+                    showLAMenu = false;
+                }
             }
         }
 
@@ -107,19 +175,33 @@ namespace RCSLandAid
                 targetSelected = false;
                 selectingTarget = false;
                 theLine.SetWidth(0, 0);
-                RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconBlue";
-                
-                
-                RCSla1Btn.Drawable = null;
+                if (checkBlizzyToolbar)
+                {
+                    RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconBlue";
+                    RCSla1Btn.Drawable = null;
+                }
+                else
+                {
+                    LAButton.SetTexture(btnBlue);
+                    showLAMenu = false;
+                }
                     
             }
             else
             {
                 controlState = 2;
-                RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconRed";
                 selectingTarget = true;
-                RCSLandingAidWindow RCSwin = new RCSLandingAidWindow();
-                RCSla1Btn.Drawable = RCSwin; 
+                if (checkBlizzyToolbar)
+                {
+                    RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconRed";
+                    RCSLandingAidWindow RCSwin = new RCSLandingAidWindow();
+                    RCSla1Btn.Drawable = RCSwin;
+                }
+                else
+                {
+                    LAButton.SetTexture(btnRed);
+                    showLAMenu = true;
+                }
 
             }
         }
@@ -145,7 +227,14 @@ namespace RCSLandAid
                     theLine.SetPosition(1, hitLoc + ((hitLoc - FlightGlobals.ActiveVessel.mainBody.position).normalized) * 7);
                     if(Input.GetKeyDown(KeyCode.Mouse0))
                     {
-                        RCSla1Btn.Drawable = null;
+                        if (checkBlizzyToolbar)
+                        {
+                            RCSla1Btn.Drawable = null;
+                        }
+                        else
+                        {
+                            showLAMenu = false;
+                        }
                         selectingTarget = false;
                         targetLocation = hitLoc;
                         targetSelected = true;
@@ -174,10 +263,16 @@ namespace RCSLandAid
             if (ToolbarManager.ToolbarAvailable) //if toolbar loaded, destroy button on leaving flight scene
             {
                 RCSla1Btn.Destroy();
-                RCSla.SetValue("EngageHeight", engageHeight.ToString()); 
-                //RCSla.SetValue("ForceSAS", forceSASup.ToString());
-                RCSla.Save(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/RCSla.cfg");
+
+                
             }
+            else
+            {
+                ApplicationLauncher.Instance.RemoveModApplication(LAButton);
+            }
+            RCSla.SetValue("EngageHeight", engageHeight.ToString());
+            //RCSla.SetValue("ForceSAS", forceSASup.ToString());
+            RCSla.Save(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/RCSla.cfg");
         }
         public void FixedUpdate()
         {
@@ -575,6 +670,41 @@ namespace RCSLandAid
             {
                 return 0f;
             }
+        }
+        public void DrawWin(int WindowID)
+        {
+
+            GUI.Label(new Rect(10, 20, 100, 20), "LandAid Height:");
+            string engageHeightStr = RCSLandingAid.engageHeight.ToString();//same^
+            //GUI.skin.label.alignment = TextAnchor.MiddleRight;
+            //GUI.skin.textField.alignment = TextAnchor.MiddleRight;
+            engageHeightStr = GUI.TextField(new Rect(10, 40, 55, 20), engageHeightStr, 5);//same^
+            try//same^
+            {
+                RCSLandingAid.engageHeight = Convert.ToInt32(engageHeightStr); //convert string to number
+            }
+            catch//same^
+            {
+                engageHeightStr = RCSLandingAid.engageHeight.ToString(); //conversion failed, reset change
+                //GUI.FocusControl(""); //non-number key pressed, return control focus to vessel
+            }
+            //if (RCSLandingAid.forceSASup)
+            //{
+            //    //GUI.DrawTexture(new Rect(11, 36, 158, 23), BtnTexGrn);
+            //    if (GUI.Button(new Rect(10, 35, 160, 25), "Force SAS Up: True"))
+            //    {
+            //        RCSLandingAid.forceSASup = false;
+            //    }
+            //}
+            //else
+            //{
+            //    //GUI.DrawTexture(new Rect(11, 36, 158, 23), BtnTexRed);
+            //    if (GUI.Button(new Rect(10, 35, 160, 25), "Force SAS Up: False"))
+            //    {
+            //        RCSLandingAid.forceSASup = true;
+            //    }
+            //}
+
         }
     }
 
