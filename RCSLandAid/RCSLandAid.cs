@@ -29,15 +29,16 @@ namespace RCSLandAid
         Texture2D btnBlueEnable = new Texture2D(24, 24);
         Texture2D btnGray = new Texture2D(24, 24);
         bool showLAMenu = false;
-        Rect LASettingsWin = new Rect(Screen.width-200, 40, 100, 70);
+        Rect LASettingsWin = new Rect(Screen.width-200, 40, 160,90);
         public static RCSLandingAidModule curVsl;
         int lastBtnState = 0;
         public static int curBtnState = 0;
+        public static bool overWindow;
         
                 
         public void Start()
         {
-            print("Landing Aid Ver. 2.2 start.");
+            print("Landing Aid Ver. 2.3 start.");
             RenderingManager.AddToPostDrawQueue(0, LAOnDraw); //GUI window hook
             byte[] importTxtRed = File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/iconRed.png"); //load our button textures
             byte[] importTxtBlue = File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/iconBlue.png");
@@ -98,6 +99,15 @@ namespace RCSLandAid
             if(showLAMenu)
             {
                 LASettingsWin = GUI.Window(67347792, LASettingsWin, DrawWin, "Settings", HighLogic.Skin.window);
+                if(Input.mousePosition.x >LASettingsWin.x && Input.mousePosition.x < LASettingsWin.x + LASettingsWin.width &&  (Screen.height - Input.mousePosition.y) >LASettingsWin.y && (Screen.height - Input.mousePosition.y) < LASettingsWin.y + LASettingsWin.height)
+                {
+                    overWindow = true;
+
+                }
+                else
+                {
+                    overWindow = false;
+                }
             }
         }
 
@@ -319,19 +329,22 @@ namespace RCSLandAid
                     curVsl.theLine.SetWidth(0, 1);
                     curVsl.theLine.SetPosition(0, hitLoc);
                     curVsl.theLine.SetPosition(1, hitLoc + ((hitLoc - FlightGlobals.ActiveVessel.mainBody.position).normalized) * 7);
-                    if(Input.GetKeyDown(KeyCode.Mouse0))
+                    if (!overWindow)
                     {
-                        if (checkBlizzyToolbar)
+                        if (Input.GetKeyDown(KeyCode.Mouse0))
                         {
-                            RCSla1Btn.Drawable = null;
+                            if (checkBlizzyToolbar)
+                            {
+                                RCSla1Btn.Drawable = null;
+                            }
+                            else
+                            {
+                                showLAMenu = false;
+                            }
+                            selectingTarget = false;
+                            curVsl.targetLocation = hitLoc;
+                            curVsl.targetSelected = true;
                         }
-                        else
-                        {
-                            showLAMenu = false;
-                        }
-                        selectingTarget = false;
-                        curVsl.targetLocation = hitLoc;
-                        curVsl.targetSelected = true;
                     }
                 }
             }
@@ -471,11 +484,9 @@ namespace RCSLandAid
         public void DrawWin(int WindowID)
         {
 
-            GUI.Label(new Rect(10, 20, 100, 20), "LandAid Height:");
+            GUI.Label(new Rect(10, 20, 100, 20), "Engage At:");
             string engageHeightStr = curVsl.engageHeight.ToString();//same^
-            //GUI.skin.label.alignment = TextAnchor.MiddleRight;
-            //GUI.skin.textField.alignment = TextAnchor.MiddleRight;
-            engageHeightStr = GUI.TextField(new Rect(10, 40, 55, 20), engageHeightStr, 5);//same^
+            engageHeightStr = GUI.TextField(new Rect(100, 20, 50, 20), engageHeightStr, 5);//same^
             try//same^
             {
                 curVsl.engageHeight = Convert.ToInt32(engageHeightStr); //convert string to number
@@ -483,16 +494,66 @@ namespace RCSLandAid
             catch//same^
             {
                 engageHeightStr = curVsl.engageHeight.ToString(); //conversion failed, reset change
-                //GUI.FocusControl(""); //non-number key pressed, return control focus to vessel
             }
-           
+
+            GUI.Label(new Rect(10, 40, 100, 20), "Max Tip:");
+            string maxTipStr = curVsl.maxTip.ToString();//same^
+            maxTipStr = GUI.TextField(new Rect(100, 40, 50, 20), maxTipStr, 5);//same^
+            try//same^
+            {
+                curVsl.maxTip = Convert.ToInt32(maxTipStr); //convert string to number
+            }
+            catch//same^
+            {
+                maxTipStr = curVsl.maxTip.ToString(); //conversion failed, reset change
+            }
+
+            GUI.Label(new Rect(10, 60, 100, 20), "Speed%:");
+            string speedStr = (curVsl.aggresiveness * 100f).ToString("####0");//same^
+            speedStr = GUI.TextField(new Rect(100, 60, 50, 20), speedStr, 5);//same^
+            try//same^
+            {
+                curVsl.aggresiveness = (float)(Convert.ToDouble(speedStr)/100); //convert string to number
+            }
+            catch//same^
+            {
+                speedStr = (curVsl.aggresiveness * 100f).ToString("####0"); //conversion failed, reset change
+            }
+            //if(curVsl.useTip)
+            //{
+            //    if(GUI.Button(new Rect(10,80,70,20),"Tip: Yes"))
+            //    {
+            //        curVsl.useTip = false;
+            //    }
+            //}
+            //else
+            //{
+            //    if (GUI.Button(new Rect(10, 80, 70, 20), "Tip: No"))
+            //    {
+            //        curVsl.useTip = true;
+            //    }
+            //}
+            //if (curVsl.useRCS)
+            //{
+            //    if (GUI.Button(new Rect(80, 80, 70, 20), "RCS: Yes"))
+            //    {
+            //        curVsl.useRCS = false;
+            //    }
+            //}
+            //else
+            //{
+            //    if (GUI.Button(new Rect(80, 80, 70, 20), "RCS: No"))
+            //    {
+            //        curVsl.useRCS = true;
+            //    }
+            //}
 
         }
     }
 
     public class RCSLandingAidWindow : MonoBehaviour, IDrawable
     {
-       public Rect RCSlaWin = new Rect(0, 0, 180, 70);
+       public Rect RCSlaWin = new Rect(0, 0, 180, 90);
 
         public Vector2 Draw(Vector2 position)
         {
@@ -506,18 +567,24 @@ namespace RCSLandAid
             GUI.Window(22334567, RCSlaWin, DrawWin, "",GUI.skin.window);
             //RCSlaWin = GUILayout.Window(42334567, RCSlaWin, DrawWin, (string)null, GUI.skin.box);
             GUI.skin = oldSkin;
+            if (Input.mousePosition.x > RCSlaWin.x && Input.mousePosition.x < RCSlaWin.x + RCSlaWin.width && (Screen.height - Input.mousePosition.y) > RCSlaWin.y && (Screen.height - Input.mousePosition.y) < RCSlaWin.y + RCSlaWin.height)
+            {
+                RCSLandAid.RCSLandingAid.overWindow = true;
 
+            }
+            else
+            {
+                RCSLandAid.RCSLandingAid.overWindow = false;
+            }
             return new Vector2(RCSlaWin.width, RCSlaWin.height);
         }
 
         public void DrawWin(int WindowID)
         {
-            
-            GUI.Label(new Rect(10, 10, 100, 20), "LandAid Height:");
+
+            GUI.Label(new Rect(10, 20, 100, 20), "Engage At:");
             string engageHeightStr = RCSLandingAid.curVsl.engageHeight.ToString();//same^
-            //GUI.skin.label.alignment = TextAnchor.MiddleRight;
-            //GUI.skin.textField.alignment = TextAnchor.MiddleRight;
-            engageHeightStr = GUI.TextField(new Rect(115, 10, 55, 20), engageHeightStr, 5);//same^
+            engageHeightStr = GUI.TextField(new Rect(100, 20, 50, 20), engageHeightStr, 5);//same^
             try//same^
             {
                 RCSLandingAid.curVsl.engageHeight = Convert.ToInt32(engageHeightStr); //convert string to number
@@ -525,24 +592,32 @@ namespace RCSLandAid
             catch//same^
             {
                 engageHeightStr = RCSLandingAid.curVsl.engageHeight.ToString(); //conversion failed, reset change
-                //GUI.FocusControl(""); //non-number key pressed, return control focus to vessel
             }
-            //if (RCSLandingAid.forceSASup)
-            //{
-            //    //GUI.DrawTexture(new Rect(11, 36, 158, 23), BtnTexGrn);
-            //    if (GUI.Button(new Rect(10, 35, 160, 25), "Force SAS Up: True"))
-            //    {
-            //        RCSLandingAid.forceSASup = false;
-            //    }
-            //}
-            //else
-            //{
-            //    //GUI.DrawTexture(new Rect(11, 36, 158, 23), BtnTexRed);
-            //    if (GUI.Button(new Rect(10, 35, 160, 25), "Force SAS Up: False"))
-            //    {
-            //        RCSLandingAid.forceSASup = true;
-            //    }
-            //}
+
+            GUI.Label(new Rect(10, 40, 100, 20), "Max Tip:");
+            string maxTipStr = RCSLandingAid.curVsl.maxTip.ToString();//same^
+            maxTipStr = GUI.TextField(new Rect(100, 40, 50, 20), maxTipStr, 5);//same^
+            try//same^
+            {
+                RCSLandingAid.curVsl.maxTip = Convert.ToInt32(maxTipStr); //convert string to number
+            }
+            catch//same^
+            {
+                maxTipStr = RCSLandingAid.curVsl.maxTip.ToString(); //conversion failed, reset change
+            }
+
+            GUI.Label(new Rect(10, 60, 100, 20), "Speed%:");
+            string speedStr = (RCSLandingAid.curVsl.aggresiveness * 100f).ToString("####0");//same^
+            speedStr = GUI.TextField(new Rect(100, 60, 50, 20), speedStr, 5);//same^
+            try//same^
+            {
+                RCSLandingAid.curVsl.aggresiveness = (float)(Convert.ToDouble(speedStr) / 100); //convert string to number
+            }
+            catch//same^
+            {
+                speedStr = (RCSLandingAid.curVsl.aggresiveness * 100f).ToString("####0"); //conversion failed, reset change
+            }
+            
             
         }
 

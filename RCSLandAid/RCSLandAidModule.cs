@@ -32,33 +32,77 @@ namespace RCSLandAid
         private int frameCount = 0;
         public LineRenderer theLine = new LineRenderer();
          GameObject lineObj = new GameObject("Line");
-         
+
+         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] 
+         public int maxTip = 20;
+
+         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] 
+         public float aggresiveness = 1f;
+
+         //[KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] 
+         //public bool useTip = true;
+
+         //[KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] 
+         //public bool useRCS = false;
+
+
+         float rcsLimiter; //KSP doesn't throttle RCS on it's own, do it manually when close to target
+        float rcsXpower = 0f;
+         float rcsYpower = 0f;
+         float rcsZpower = 0f;
         
         public void Start()
         {
 
-            theLine = lineObj.AddComponent<LineRenderer>();
-            theLine.material = new Material(Shader.Find("Particles/Additive"));
-            //theLine.SetColors(Color.red, Color.red);
-            theLine.SetColors(Color.blue, Color.blue);
-            theLine.SetWidth(0, 0);
-            theLine.SetVertexCount(2);
-            theLine.useWorldSpace = true;
+            if (HighLogic.LoadedSceneIsFlight)
+            {
+                theLine = lineObj.AddComponent<LineRenderer>();
+                theLine.material = new Material(Shader.Find("Particles/Additive"));
+                //theLine.SetColors(Color.red, Color.red);
+                theLine.SetColors(Color.blue, Color.blue);
+                theLine.SetWidth(0, 0);
+                theLine.SetVertexCount(2);
+                theLine.useWorldSpace = true;
+                this.vessel.OnPostAutopilotUpdate += ControlsOverride;
+            }
 
 
         }
 
-        
+        public float RCSlimitCalc(float RCS, float Limit)
+        {
+            float rcs = Mathf.Abs(RCS);
+            rcs = Mathf.Min(rcs, Limit);
+            if(RCS < 0) //was RCS negative?
+            {
+                rcs = rcs * -1f;
+            }
+            return rcs;
+        }
 
-       
+        public void ControlsOverride(FlightCtrlState fs)
+        {
+            if (controlState != 0 && engageHeight > vslHeight && this.vessel.ActionGroups[KSPActionGroup.SAS]) //only do stuff if we are engaged
+            {
+                fs.X = RCSlimitCalc(fs.X, rcsLimiter);
+                fs.Y = RCSlimitCalc(fs.Y, rcsLimiter);
+                fs.Z = RCSlimitCalc(fs.Z, rcsLimiter);
+
+                //if (useRCS)
+                //{
+                    fs.X = rcsXpower;
+                    fs.Y = rcsYpower;
+                    fs.Z = rcsZpower;
+                //}
+            }
+        }
         
 
        
 
         public void Update()
         {
-
-            
+           
 
         }
 
@@ -70,27 +114,8 @@ namespace RCSLandAid
         }
         public void FixedUpdate()
         {
-            if (isMasterModule)
+            if (HighLogic.LoadedSceneIsFlight)
             {
-                if (controlState > 0 && vslHeight < engageHeight && this.vessel.ActionGroups[KSPActionGroup.SAS] && !SASset) //we just enable the mod, set SAS up direction
-                {
-
-                    this.vessel.Autopilot.SetMode(VesselAutopilot.AutopilotMode.StabilityAssist);
-                    //calculate our available sideways accel at 7 degrees, our max tip is 10 degrees (set later)
-                    float currGrav = (float)(this.vessel.mainBody.gravParameter / (Math.Pow((this.vessel.altitude + this.vessel.mainBody.Radius), 2)));
-                    thisBodyAccel = (float)(Mathf.Tan(Mathf.Deg2Rad * 1) * currGrav);
-
-                    vslRefQuant = FindUpVector(out vslUpRef);
-
-                    SASset = true;
-                    frameCount = 0;
-
-
-                }
-                if (controlState == 0 || vslHeight > engageHeight || !this.vessel.ActionGroups[KSPActionGroup.SAS]) //one of our conditions is not met, disable mod and unset SAS up dir
-                {
-                    SASset = false;
-                }
                 surVect = this.vessel.srf_velocity;
                 vslRef = this.vessel.ReferenceTransform;
                 worldUp = vslRef.position - this.vessel.mainBody.position;
@@ -98,70 +123,113 @@ namespace RCSLandAid
                 moveHoriz = Vector3.Exclude(worldUp, surVect);
                 moveHorizLocal = vslRef.InverseTransformDirection(moveHoriz);
 
-
-                if (this.vessel.mainBody.ocean)
+                if (isMasterModule)
                 {
-                    vslHeight = (float)Math.Min(this.vessel.altitude, this.vessel.heightFromTerrain);
-                }
-                else
-                {
-                    vslHeight = this.vessel.heightFromTerrain;
-                }
-
-                if (controlState == 1 && engageHeight > vslHeight) //just cancel velocity as fast as we can
-                {
-
-
-                    if (this.vessel.ActionGroups[KSPActionGroup.SAS])
+                    if (controlState > 0 && vslHeight < engageHeight && this.vessel.ActionGroups[KSPActionGroup.SAS] && !SASset) //we just enable the mod, set SAS up direction
                     {
-                        RCSLandingAid.curBtnState = 2;
+
+                        this.vessel.Autopilot.SetMode(VesselAutopilot.AutopilotMode.StabilityAssist);
+                        //calculate our available sideways accel at 7 degrees, our max tip is 10 degrees (set later)
+                        float currGrav = (float)(this.vessel.mainBody.gravParameter / (Math.Pow((this.vessel.altitude + this.vessel.mainBody.Radius), 2)));
+                        thisBodyAccel = (float)(Mathf.Tan(Mathf.Deg2Rad * 1) * currGrav);
+
+                        vslRefQuant = FindUpVector(out vslUpRef);
+                        this.vessel.Autopilot.SAS.LockHeading(Quaternion.LookRotation(worldUp, vslUpRef) * vslRefQuant, true);
+                        SASset = true;
+                        frameCount = 0;
+
+
+                    }
+                    if (controlState == 0 || vslHeight > engageHeight || !this.vessel.ActionGroups[KSPActionGroup.SAS]) //one of our conditions is not met, disable mod and unset SAS up dir
+                    {
+                        SASset = false;
+                    }
+
+
+                    if (this.vessel.mainBody.ocean)
+                    {
+                        vslHeight = (float)Math.Min(this.vessel.altitude, this.vessel.heightFromTerrain);
                     }
                     else
                     {
-                        RCSLandingAid.curBtnState = 1;
+                        vslHeight = this.vessel.heightFromTerrain;
                     }
-                    TipOverControl(moveHorizLocal, new Vector3(0, 0, 0));
-                    
-                }
 
-                else if (controlState == 2 && engageHeight > vslHeight)
-                {
-                    if(this.vessel.ActionGroups[KSPActionGroup.SAS])
+                    if (controlState == 1 && engageHeight > vslHeight) //just cancel velocity as fast as we can
                     {
-                        RCSLandingAid.curBtnState = 4;
+
+
+                        if (this.vessel.ActionGroups[KSPActionGroup.SAS])
+                        {
+                            RCSLandingAid.curBtnState = 2;
+                        }
+                        else
+                        {
+                            RCSLandingAid.curBtnState = 1;
+                        }
+                        //if (useTip)
+                        //{
+                            TipOverControl(moveHorizLocal, new Vector3(0, 0, 0));
+                        //}
+                        RCSControl(moveHorizLocal);
+                    }
+
+                    else if (controlState == 2 && engageHeight > vslHeight)
+                    {
+                        if (this.vessel.ActionGroups[KSPActionGroup.SAS])
+                        {
+                            RCSLandingAid.curBtnState = 4;
+                        }
+                        else
+                        {
+                            RCSLandingAid.curBtnState = 3;
+                        }
+
+                        Vector3 targetVect = Vector3.Exclude(worldUp, targetLocation - vslRef.position); //vector from vessel to target, limit to horizontal plane
+                        Vector3 targetVectLocal = (vslRef.InverseTransformDirection(targetVect)); //our vector, as distance to target, in local coords uses
+
+                        float targetVel = (Mathf.Sqrt(2f * Mathf.Abs(targetVectLocal.magnitude) * (thisBodyAccel * 3)))*aggresiveness; //calc max speed we could be going for this distance to target. desired vel = sqaure root of (2*distToTarget*desiredAccel)
+                        print("targvel " + targetVel);
+                        Vector3 targetVectLocalModifiedSpeed = targetVectLocal.normalized * targetVel; //this is our desired vector for this distance from target
+                        Vector3 moveSpeedTorwardTarget = Vector3.Project(moveHorizLocal, targetVectLocal); //component of our motion to/from target
+                        Vector3 moveSpeedSidewaysFromTarget = moveSpeedTorwardTarget - moveHorizLocal;
+
+
+                        Vector3 currentVectorDiff = moveSpeedTorwardTarget - targetVectLocalModifiedSpeed; //find our difference to pass to tip over control
+                        //if (useTip)
+                        //{
+                            TipOverControl(currentVectorDiff, moveSpeedSidewaysFromTarget); //pass sideways speed raw, we want to cancel it asap. setting up direction is not in this method, safe to just skip it
+                        //}
+                        RCSControl(-(targetVectLocalModifiedSpeed-moveHorizLocal)); //rcs is direct, so just pass it our vector, always run this method as it calculates rcsLimitier, check to use in the FlightControlState method
+
                     }
                     else
                     {
-                        RCSLandingAid.curBtnState = 3;
+                        RCSLandingAid.curBtnState = 0;
                     }
-                    
-                    Vector3 targetVect = Vector3.Exclude(worldUp, targetLocation - vslRef.position); //vector from vessel to target
-                    Vector3 targetVectLocal = (vslRef.InverseTransformDirection(targetVect)); //our vector, as distance to target, in local coords uses
 
-                    float targetVel = Mathf.Sqrt(2f * Mathf.Abs(targetVectLocal.magnitude) * (thisBodyAccel * 3)); //calc max speed we could be going for this distance to target. desired vel = sqaure root of (2*distToTarget*desiredAccel)
-
-                    Vector3 targetVectLocalModifiedSpeed = targetVectLocal.normalized * targetVel; //this is our desired vector for this distance from target
-                    Vector3 moveSpeedTorwardTarget = Vector3.Project(moveHorizLocal, targetVectLocal); //component of our motion to/from target
-                    Vector3 moveSpeedSidewaysFromTarget = moveSpeedTorwardTarget - moveHorizLocal;
-
-
-                    Vector3 currentVectorDiff = moveSpeedTorwardTarget - targetVectLocalModifiedSpeed; //find our difference to pass to tip over control
-                    TipOverControl(currentVectorDiff, moveSpeedSidewaysFromTarget); //pass sideways speed raw, we want to cancel it asap.
                 }
-                else
-                {
-                    RCSLandingAid.curBtnState = 0;
-                }
-                
             }
+        }
+
+        public void RCSControl(Vector3 tarVect)
+        {
+           // print("tad direct " + Planetarium.GetUniversalTime()+ tarVectDirect);
+            //Vector3 tarVect = Vector3.Exclude(worldUp, tarVectDirect);
+            print("tar " + tarVect);
+            rcsLimiter = Mathf.Min(1, targetLocation.magnitude);
+            rcsXpower = tarVect.x * 2;
+            rcsYpower = tarVect.z * 2;
+            rcsZpower = tarVect.y * 2;
+
         }
 
         public void TipOverControl(Vector3 targetVect, Vector3 sideWaysVect)
         {
             //targetVect is our current "movement" relative to our target. In move to point mode, target is moving also as it is the desired velocity for our distance to target
             //worldUp is straight up
-            float degTipDesiredForwards = Mathf.Min(20, (targetVect.magnitude / (thisBodyAccel * 4))) * -1f; //degrees to tip, make negative to tip away
-            float degTipDesiredSideways = Mathf.Min(20, (sideWaysVect.magnitude / (thisBodyAccel * 4)));// * -1f; //degrees to tip, make negative to tip away
+            float degTipDesiredForwards = Mathf.Min(maxTip, (targetVect.magnitude / (thisBodyAccel * 4)*aggresiveness)) * -1f; //degrees to tip, make negative to tip away
+            float degTipDesiredSideways = Mathf.Min(maxTip, (sideWaysVect.magnitude / (thisBodyAccel * 4)*aggresiveness));// * -1f; //degrees to tip, make negative to tip away
             Vector3 sasDirectionSidewaysOnly = Vector3.RotateTowards(worldUp, vslRef.TransformDirection(sideWaysVect), (Mathf.Deg2Rad * degTipDesiredSideways), 0f);
             Vector3 sasDirection = Vector3.RotateTowards(sasDirectionSidewaysOnly, vslRef.TransformDirection(targetVect), (Mathf.Deg2Rad * degTipDesiredForwards), 0f);
             if (frameCount == 0)
