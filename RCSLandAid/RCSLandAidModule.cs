@@ -189,7 +189,7 @@ namespace RCSLandAid
                         Vector3 targetVectLocal = (vslRef.InverseTransformDirection(targetVect)); //our vector, as distance to target, in local coords uses
 
                         float targetVel = (Mathf.Sqrt(2f * Mathf.Abs(targetVectLocal.magnitude) * (thisBodyAccel * 3)))*aggresiveness; //calc max speed we could be going for this distance to target. desired vel = sqaure root of (2*distToTarget*desiredAccel)
-                        print("targvel " + targetVel);
+                        //("targvel " + targetVel);
                         Vector3 targetVectLocalModifiedSpeed = targetVectLocal.normalized * targetVel; //this is our desired vector for this distance from target
                         Vector3 moveSpeedTorwardTarget = Vector3.Project(moveHorizLocal, targetVectLocal); //component of our motion to/from target
                         Vector3 moveSpeedSidewaysFromTarget = moveSpeedTorwardTarget - moveHorizLocal;
@@ -216,7 +216,7 @@ namespace RCSLandAid
         {
            // print("tad direct " + Planetarium.GetUniversalTime()+ tarVectDirect);
             //Vector3 tarVect = Vector3.Exclude(worldUp, tarVectDirect);
-            print("tar " + tarVect);
+            //print("tar " + tarVect);
             rcsLimiter = Mathf.Min(1, targetLocation.magnitude);
             rcsXpower = tarVect.x * 2;
             rcsYpower = tarVect.z * 2;
