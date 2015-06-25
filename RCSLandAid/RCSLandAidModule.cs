@@ -16,11 +16,12 @@ namespace RCSLandAid
         Vector3 worldUp; //world up reference, SOI COM to vslRef origin
         Vector3 moveHoriz; //horizontal movement, world coords
         Vector3 moveHorizLocal; //horizontal movement, vessel local coords
-
+        
         public float engageHeight = 500;
         public bool targetSelected = false;
         public Vector3 targetLocation;
         public int controlState = 0; //0 = off, 1 = zero vel, 2= hover over point;
+         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] 
        public bool isMasterModule = false;
      
         public bool SASset = false;
@@ -40,7 +41,7 @@ namespace RCSLandAid
          public float aggresiveness = 1f;
 
          //[KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] 
-         //public bool useTip = true;
+         //public bool masterModule;
 
          //[KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] 
          //public bool useRCS = false;
