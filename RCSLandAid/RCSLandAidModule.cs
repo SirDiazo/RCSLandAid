@@ -19,7 +19,9 @@ namespace RCSLandAid
         
         public float engageHeight = 500;
         public bool targetSelected = false;
+        [KSPField(isPersistant = false, guiActive = false, guiActiveEditor = false)]
         public Vector3 targetLocation;
+        [KSPField(isPersistant=false,guiActive=false,guiActiveEditor=false)]
         public int controlState = 0; //0 = off, 1 = zero vel, 2= hover over point;
          [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] 
        public bool isMasterModule = false;
