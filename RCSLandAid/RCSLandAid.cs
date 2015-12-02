@@ -38,7 +38,7 @@ namespace RCSLandAid
 
         public void Start()
         {
-            print("Landing Aid Ver. 2.6 start.");
+            print("Landing Aid Ver. 2.7 start.");
             RenderingManager.AddToPostDrawQueue(0, LAOnDraw); //GUI window hook
             byte[] importTxtRed = File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/iconRed.png"); //load our button textures
             byte[] importTxtBlue = File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/iconBlue.png");
@@ -335,7 +335,7 @@ namespace RCSLandAid
                 if (!DataModulePresent(FlightGlobals.ActiveVessel) && curVsl != null)
                 {
                     errLine = "1a";
-                    //Debug.Log("vsl null");
+                    Debug.Log("vsl null");
                     curVsl.theLine.SetColors(Color.blue, Color.blue);
                     curVsl = null;
                     curBtnState = 0;
@@ -433,7 +433,7 @@ namespace RCSLandAid
                 errLine = "7";
                 //curVsl = null;
                 errLine = "8";
-                curBtnState = 0;
+                //curBtnState = 0;
                 //   }
             }
             catch
@@ -485,6 +485,7 @@ namespace RCSLandAid
                     }
                 }
                 errLine = "10";
+                //Debug.Log("LA " +curBtnState);
                 if (lastBtnState != curBtnState)
                 {
                     switch (curBtnState)
@@ -492,50 +493,60 @@ namespace RCSLandAid
                         case 0:
                             if (checkBlizzyToolbar)
                             {
+                                //Debug.Log("LA1");
                                 RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconWhiteB";
                             }
                             else
                             {
+                                //Debug.Log("LA2");
                                 LAButton.SetTexture(btnGray);
                             }
                             break;
                         case 1:
                             if (checkBlizzyToolbar)
                             {
+                                //Debug.Log("LA3");
                                 RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconBlue";
                             }
                             else
                             {
+                                //Debug.Log("LA4");
                                 LAButton.SetTexture(btnBlue);
                             }
                             break;
                         case 2:
                             if (checkBlizzyToolbar)
                             {
+                               // Debug.Log("LA5");
                                 RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconBlueEnabled";
                             }
                             else
                             {
+                               // Debug.Log("LA6");
                                 LAButton.SetTexture(btnBlueEnable);
                             }
                             break;
                         case 3:
                             if (checkBlizzyToolbar)
                             {
+                               // Debug.Log("LA7");
                                 RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconRed";
                             }
                             else
                             {
+                               // Debug.Log("LA8");
                                 LAButton.SetTexture(btnRed);
                             }
                             break;
                         case 4:
                             if (checkBlizzyToolbar)
                             {
+                               // Debug.Log("LA9");
                                 RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconRedEnabled";
                             }
                             else
                             {
+                               // Debug.Log("LA10");
                                 LAButton.SetTexture(btnRedEnable);
                             }
                             break;

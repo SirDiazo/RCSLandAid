@@ -42,6 +42,7 @@ namespace RCSLandAid
          [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] 
          public float aggresiveness = 1f;
 
+         int ourBtnState = 0;
          //[KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)] 
          //public bool masterModule;
 
@@ -164,11 +165,11 @@ namespace RCSLandAid
 
                         if (this.vessel.ActionGroups[KSPActionGroup.SAS])
                         {
-                            RCSLandingAid.curBtnState = 2;
+                            ourBtnState = 2;
                         }
                         else
                         {
-                            RCSLandingAid.curBtnState = 1;
+                            ourBtnState = 1;
                         }
                         //if (useTip)
                         //{
@@ -181,11 +182,11 @@ namespace RCSLandAid
                     {
                         if (this.vessel.ActionGroups[KSPActionGroup.SAS])
                         {
-                            RCSLandingAid.curBtnState = 4;
+                            ourBtnState = 4;
                         }
                         else
                         {
-                            RCSLandingAid.curBtnState = 3;
+                            ourBtnState = 3;
                         }
 
                         Vector3 targetVect = Vector3.Exclude(worldUp, targetLocation - vslRef.position); //vector from vessel to target, limit to horizontal plane
@@ -208,9 +209,14 @@ namespace RCSLandAid
                     }
                     else
                     {
-                        RCSLandingAid.curBtnState = 0;
+                        ourBtnState = 0;
                     }
 
+                    if(this.vessel == FlightGlobals.ActiveVessel) //only change GUI button if we are focus vessel
+                    {
+                        //Debug.Log("LA Module " + ourBtnState);
+                        RCSLandingAid.curBtnState = ourBtnState;
+                    }
                 }
             }
         }
