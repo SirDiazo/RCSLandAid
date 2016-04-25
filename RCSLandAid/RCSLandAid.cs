@@ -1,10 +1,11 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using UnityEngine;
 using System.IO;
-
+using KSP.UI.Screens;
 
 namespace RCSLandAid
 {
@@ -15,7 +16,7 @@ namespace RCSLandAid
 
         bool selectingTarget = false;
         private IButton RCSla1Btn;
-
+        private bool buttonCreated = false;
         //LineRenderer theLine = new LineRenderer();
         //public static bool forceSASup = true;
         //RCSLandingAidWindow RCSwin;
@@ -38,8 +39,8 @@ namespace RCSLandAid
 
         public void Start()
         {
-            print("Landing Aid Ver. 2.7 start.");
-            RenderingManager.AddToPostDrawQueue(0, LAOnDraw); //GUI window hook
+            print("Landing Aid Ver. 3.0 start.");
+            //RenderingManager.AddToPostDrawQueue(0, LAOnDraw); //GUI window hook
             byte[] importTxtRed = File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/iconRed.png"); //load our button textures
             byte[] importTxtBlue = File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/iconBlue.png");
             byte[] importTxt = File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/iconWhiteB.png");
@@ -86,7 +87,8 @@ namespace RCSLandAid
             {
                 //AGXShow = true; //toolbar not installed, show AGX regardless
                 //now using stock toolbar as fallback
-                LAButton = ApplicationLauncher.Instance.AddModApplication(onStockToolbarClick, onStockToolbarClick, DummyVoid, DummyVoid, DummyVoid, DummyVoid, ApplicationLauncher.AppScenes.FLIGHT, (Texture)GameDatabase.Instance.GetTexture("Diazo/RCSLandAid/iconWhiteB", false));
+                //LAButton = ApplicationLauncher.Instance.AddModApplication(onStockToolbarClick, onStockToolbarClick, DummyVoid, DummyVoid, DummyVoid, DummyVoid, ApplicationLauncher.AppScenes.FLIGHT, (Texture)GameDatabase.Instance.GetTexture("Diazo/RCSLandAid/iconWhiteB", false));
+                StartCoroutine("AddButtons");
                 checkBlizzyToolbar = false;
             }
             //RCSLandingAidWindow RCSwin = new RCSLandingAidWindow();
@@ -94,7 +96,24 @@ namespace RCSLandAid
 
         }
 
-        public void LAOnDraw()
+        IEnumerator AddButtons()
+        {
+            while (!ApplicationLauncher.Ready)
+            {
+                yield return null;
+            }
+            if (!buttonCreated)
+            {
+                LAButton = ApplicationLauncher.Instance.AddModApplication(onStockToolbarClick, onStockToolbarClick, DummyVoid, DummyVoid, DummyVoid, DummyVoid, ApplicationLauncher.AppScenes.FLIGHT, (Texture)GameDatabase.Instance.GetTexture("Diazo/RCSLandAid/iconWhiteB", false));
+                //GameEvents.onGUIApplicationLauncherReady.Remove(AddButtons);
+                //CLButton.onLeftClick(StockToolbarClick);
+                LAButton.onRightClick = (Callback)Delegate.Combine(LAButton.onLeftClick, LeftClick); //combine delegates together
+                LAButton.onRightClick = (Callback)Delegate.Combine(LAButton.onRightClick, RightClick); //combine delegates together
+                buttonCreated = true;
+            }
+        }
+
+        public void OnGUI()
         {
             if (showLAMenu)
             {
@@ -119,14 +138,15 @@ namespace RCSLandAid
         {
 
             //print("mouse " + Input.GetMouseButtonUp(1) + Input.GetMouseButtonDown(1));
-            if (Input.GetMouseButtonUp(1))
-            {
-                RightClick();
-            }
-            else
-            {
-                LeftClick();
-            }
+            //superceeded by delegates in KSP 1.1
+            //if (Input.GetMouseButtonUp(1))
+            //{
+            //    RightClick();
+            //}
+            //else
+            //{
+            //    LeftClick();
+            //}
 
         }
 
@@ -260,52 +280,40 @@ namespace RCSLandAid
             }
         }
 
-        public void LeftClick()
+        public Callback LeftClick = delegate
         {
             if (curVsl != null)
             {
                 if (curVsl.controlState == 0)
                 {
-                    SetHoverOn();
+                    FindObjectOfType<RCSLandingAid>().SetHoverOn();
                 }
                 else
                 {
-                    SetHoverOff();
+                    FindObjectOfType<RCSLandingAid>().SetHoverOff();
                 }
             }
 
-        }
+        };
 
-        public void RightClick()
+        
+
+        public Callback RightClick = delegate
         {
             if (curVsl != null)
             {
                 if (curVsl.controlState == 2)
                 {
-                    SetHoverOn();
-                    //curVsl.controlState = 1;
-                    //curVsl.targetSelected = false;
-                    //selectingTarget = false;
-                    //curVsl.theLine.SetWidth(0, 0);
-                    //if (checkBlizzyToolbar)
-                    //{
-                    //    RCSla1Btn.TexturePath = "Diazo/RCSLandAid/iconBlue";
-                    //    RCSla1Btn.Drawable = null;
-                    //}
-                    //else
-                    //{
-                    //    LAButton.SetTexture(btnBlue);
-                    //    showLAMenu = false;
-                    //}
-
+                    FindObjectOfType<RCSLandingAid>().SetHoverOn();
+                    
                 }
                 else
                 {
-                    SetHoldOn();
+                    FindObjectOfType<RCSLandingAid>().SetHoldOn();
 
                 }
             }
-        }
+        };
 
         public bool DataModulePresent(Vessel vsl)
         {
