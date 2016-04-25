@@ -35,11 +35,13 @@ namespace RCSLandAid
         int lastBtnState = 0;
         public static int curBtnState = 0;
         public static bool overWindow;
+        public static RCSLandingAid thisModule;
 
 
         public void Start()
         {
             print("Landing Aid Ver. 3.0 start.");
+            thisModule = this;
             //RenderingManager.AddToPostDrawQueue(0, LAOnDraw); //GUI window hook
             byte[] importTxtRed = File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/iconRed.png"); //load our button textures
             byte[] importTxtBlue = File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/iconBlue.png");
@@ -107,7 +109,7 @@ namespace RCSLandAid
                 LAButton = ApplicationLauncher.Instance.AddModApplication(onStockToolbarClick, onStockToolbarClick, DummyVoid, DummyVoid, DummyVoid, DummyVoid, ApplicationLauncher.AppScenes.FLIGHT, (Texture)GameDatabase.Instance.GetTexture("Diazo/RCSLandAid/iconWhiteB", false));
                 //GameEvents.onGUIApplicationLauncherReady.Remove(AddButtons);
                 //CLButton.onLeftClick(StockToolbarClick);
-                LAButton.onRightClick = (Callback)Delegate.Combine(LAButton.onLeftClick, LeftClick); //combine delegates together
+                LAButton.onLeftClick = (Callback)Delegate.Combine(LAButton.onLeftClick, LeftClick); //combine delegates together
                 LAButton.onRightClick = (Callback)Delegate.Combine(LAButton.onRightClick, RightClick); //combine delegates together
                 buttonCreated = true;
             }
@@ -284,13 +286,14 @@ namespace RCSLandAid
         {
             if (curVsl != null)
             {
+                //Debug.Log("RCS lcs " + curVsl.controlState);
                 if (curVsl.controlState == 0)
                 {
-                    FindObjectOfType<RCSLandingAid>().SetHoverOn();
+                    thisModule.SetHoverOn();
                 }
                 else
                 {
-                    FindObjectOfType<RCSLandingAid>().SetHoverOff();
+                    thisModule.SetHoverOff();
                 }
             }
 
@@ -300,16 +303,19 @@ namespace RCSLandAid
 
         public Callback RightClick = delegate
         {
+            //Debug.Log("RCS Rightclick");
+            //RCSLandingAid thisClass = FindObjectOfType<RCSLandingAid>();
             if (curVsl != null)
             {
+                //Debug.Log("RCS cs " + curVsl.controlState);
                 if (curVsl.controlState == 2)
                 {
-                    FindObjectOfType<RCSLandingAid>().SetHoverOn();
+                    thisModule.SetHoverOn();
                     
                 }
                 else
                 {
-                    FindObjectOfType<RCSLandingAid>().SetHoldOn();
+                    thisModule.SetHoldOn();
 
                 }
             }
