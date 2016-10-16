@@ -16,7 +16,7 @@ namespace RCSLandAid
         Vector3 worldUp; //world up reference, SOI COM to vslRef origin
         Vector3 moveHoriz; //horizontal movement, world coords
         Vector3 moveHorizLocal; //horizontal movement, vessel local coords
-        
+        [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = false)]
         public float engageHeight = 500;
         public bool targetSelected = false;
         [KSPField(isPersistant = false, guiActive = false, guiActiveEditor = false)]
@@ -138,7 +138,7 @@ namespace RCSLandAid
                         thisBodyAccel = (float)(Mathf.Tan(Mathf.Deg2Rad * 1) * currGrav);
 
                         vslRefQuant = FindUpVector(out vslUpRef);
-                        this.vessel.Autopilot.SAS.LockHeading(Quaternion.LookRotation(worldUp, vslUpRef) * vslRefQuant, true);
+                        this.vessel.Autopilot.SAS.LockRotation(Quaternion.LookRotation(worldUp, vslUpRef) * vslRefQuant);
                         SASset = true;
                         frameCount = 0;
 
@@ -244,7 +244,7 @@ namespace RCSLandAid
             if (frameCount == 0)
             {
                 //print("seting sas");
-                this.vessel.Autopilot.SAS.LockHeading(Quaternion.LookRotation(sasDirection, vslUpRef) * vslRefQuant, false);  //no longer locking directlyup
+                this.vessel.Autopilot.SAS.LockRotation(Quaternion.LookRotation(sasDirection, vslUpRef) * vslRefQuant);  //no longer locking directlyup
 
             }
             frameCount = frameCount + 1;

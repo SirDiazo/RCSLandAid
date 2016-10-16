@@ -40,7 +40,7 @@ namespace RCSLandAid
 
         public void Start()
         {
-            print("Landing Aid Ver. 3.0 start.");
+            print("Landing Aid Ver. 3.1 start.");
             thisModule = this;
             //RenderingManager.AddToPostDrawQueue(0, LAOnDraw); //GUI window hook
             byte[] importTxtRed = File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/iconRed.png"); //load our button textures
@@ -60,7 +60,7 @@ namespace RCSLandAid
             btnRedEnable.Apply();
             btnBlueEnable.LoadImage(importTxtBlueEnable);
             btnBlueEnable.Apply();
-            //RCSla = ConfigNode.Load(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/RCSla.cfg");
+            //RCSla = ConfigNode.Load(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/RCSla.settings");
 
             //forceSASup = Convert.ToBoolean(RCSla.GetValue("ForceSAS"));    
             //FlightGlobals.ActiveVessel.OnFlyByWire += RCSLandAidControl;
@@ -349,7 +349,7 @@ namespace RCSLandAid
                 if (!DataModulePresent(FlightGlobals.ActiveVessel) && curVsl != null)
                 {
                     errLine = "1a";
-                    Debug.Log("vsl null");
+                    //Debug.Log("vsl null");
                     curVsl.theLine.SetColors(Color.blue, Color.blue);
                     curVsl = null;
                     curBtnState = 0;
@@ -591,7 +591,7 @@ namespace RCSLandAid
             }
             //RCSla.SetValue("EngageHeight", curVsl.engageHeight.ToString());
             //RCSla.SetValue("ForceSAS", forceSASup.ToString());
-            // RCSla.Save(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/RCSla.cfg");
+            // RCSla.Save(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/RCSla.settings");
         }
 
         //public void UpdateButtons()
