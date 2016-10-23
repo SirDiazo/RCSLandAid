@@ -40,7 +40,7 @@ namespace RCSLandAid
 
         public void Start()
         {
-            print("Landing Aid Ver. 3.1 start.");
+            print("Landing Aid Ver. 3.1a start.");
             thisModule = this;
             //RenderingManager.AddToPostDrawQueue(0, LAOnDraw); //GUI window hook
             byte[] importTxtRed = File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/iconRed.png"); //load our button textures
