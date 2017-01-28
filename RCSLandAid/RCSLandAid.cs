@@ -40,7 +40,7 @@ namespace RCSLandAid
 
         public void Start()
         {
-            print("Landing Aid Ver. 3.1a start.");
+            print("Landing Aid Ver. 3.2 start.");
             thisModule = this;
             //RenderingManager.AddToPostDrawQueue(0, LAOnDraw); //GUI window hook
             byte[] importTxtRed = File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/Diazo/RCSLandAid/iconRed.png"); //load our button textures
@@ -461,6 +461,7 @@ namespace RCSLandAid
                 curVsl = null;
             }
             errLine = "9";
+           // Debug.Log("LA " + Krakensbane.GetFrameVelocity().ToString() + "|" + Krakensbane.GetFrameVelocity().magnitude);
             try
             {
                 //print("Height " + engageHeight);
@@ -468,7 +469,8 @@ namespace RCSLandAid
                 {
                     RaycastHit pHit;
                     FlightCamera FlightCam = FlightCamera.fetch;
-                    LayerMask pRayMask = 33792; //layermask does not ignore layer 0, why?
+                    //LayerMask pRayMask = 33792; //layermask does not ignore layer 0, why?
+                    LayerMask pRayMask = 32768; //hit only layer 15
                     Ray pRay = FlightCam.mainCamera.ScreenPointToRay(Input.mousePosition);
                     //Ray pRayDown = new Ray(FlightCamera. transform.position , FlightGlobals.currentMainBody.position);
                     Vector3 hitLoc = new Vector3();

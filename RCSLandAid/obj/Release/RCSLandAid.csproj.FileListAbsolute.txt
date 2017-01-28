@@ -21,3 +21,5 @@ H:\1.1 Dev\GameData\Diazo\RCSLandAid\RCSLandAid.dll
 H:\1.1 Dev\GameData\Diazo\RCSLandAid\RCSLandAid.pdb
 H:\1.2 Dev\GameData\Diazo\RCSLandAid\RCSLandAid.dll
 H:\1.2 Dev\GameData\Diazo\RCSLandAid\RCSLandAid.pdb
+H:\1.2.2 Dev\GameData\Diazo\RCSLandAid\RCSLandAid.dll
+H:\1.2.2 Dev\GameData\Diazo\RCSLandAid\RCSLandAid.pdb
